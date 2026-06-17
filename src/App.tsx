@@ -189,6 +189,7 @@ export default function App() {
         <SidebarProvider
           open={sidebarOpen}
           onOpenChange={handleSidebarOpenChange}
+          className="max-h-svh overflow-hidden"
           style={
             {
               "--sidebar-width": "calc(var(--spacing) * 52)",
@@ -201,7 +202,7 @@ export default function App() {
             currentPage={currentPage}
             onNavigate={setCurrentPage}
           />
-          <SidebarInset>
+          <SidebarInset className="overflow-hidden">
             <SiteHeader currentPage={currentPage} />
             <div className="flex flex-1 flex-col overflow-hidden">
               <div className="@container/main flex flex-1 flex-col gap-2 overflow-hidden">

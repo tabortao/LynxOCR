@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { Progress } from "@/components/ui/progress"
 import {
   UploadIcon,
   ImageIcon,
@@ -510,9 +511,18 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
           </Button>
         )}
         {batchProcessing && (
-          <Badge variant="secondary" className="h-9 px-3">
-            {t("ocr.batchProgress", { current: batchProgress.current, total: batchProgress.total })}
-          </Badge>
+          <div className="flex items-center gap-2 min-w-[200px]">
+            <Progress
+              value={batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}
+              className="h-2 flex-1"
+            />
+            <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
+              {batchProgress.total > 0
+                ? `${Math.round((batchProgress.current / batchProgress.total) * 100)}%`
+                : "0%"}
+              {" "}({batchProgress.current}/{batchProgress.total})
+            </span>
+          </div>
         )}
         {hasCompleted && (
           <Button onClick={handleCopyAllText} variant="outline" size="sm">
