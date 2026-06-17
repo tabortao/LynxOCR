@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import {
   SidebarInset,
@@ -6,14 +6,24 @@ import {
 } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { SiteHeader } from "@/components/site-header"
-import { OCRPage } from "@/app/ocr/page"
-import { SettingsPage } from "@/app/settings/page"
-import { ModelSettingsPage } from "@/app/settings/model-settings"
-import { AboutPage } from "@/app/about/page"
 import { AppProvider } from "@/lib/app-context"
 import { invoke } from "@tauri-apps/api/core"
 import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import type { AppConfig } from "@/types"
+
+// Lazy-load pages to reduce initial memory usage
+const OCRPage = lazy(() => import("@/app/ocr/page").then(m => ({ default: m.OCRPage })))
+const SettingsPage = lazy(() => import("@/app/settings/page").then(m => ({ default: m.SettingsPage })))
+const ModelSettingsPage = lazy(() => import("@/app/settings/model-settings").then(m => ({ default: m.ModelSettingsPage })))
+const AboutPage = lazy(() => import("@/app/about/page").then(m => ({ default: m.AboutPage })))
+
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center py-16">
+      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+    </div>
+  )
+}
 
 export type Page = "ocr" | "settings" | "model-settings" | "about"
 
@@ -169,18 +179,24 @@ export default function App() {
   }, [])
 
   const renderPage = () => {
-    switch (currentPage) {
-      case "ocr":
-        return <OCRPage onScreenshotTrigger={triggerScreenshot} />
-      case "settings":
-        return <SettingsPage />
-      case "model-settings":
-        return <ModelSettingsPage />
-      case "about":
-        return <AboutPage />
-      default:
-        return <OCRPage onScreenshotTrigger={triggerScreenshot} />
-    }
+    return (
+      <Suspense fallback={<PageFallback />}>
+        {(() => {
+          switch (currentPage) {
+            case "ocr":
+              return <OCRPage onScreenshotTrigger={triggerScreenshot} />
+            case "settings":
+              return <SettingsPage />
+            case "model-settings":
+              return <ModelSettingsPage />
+            case "about":
+              return <AboutPage />
+            default:
+              return <OCRPage onScreenshotTrigger={triggerScreenshot} />
+          }
+        })()}
+      </Suspense>
+    )
   }
 
   return (

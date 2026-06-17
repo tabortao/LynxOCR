@@ -1,9 +1,9 @@
 [package]
 name = "lynxocr"
-version = "1.0.1"
+version = "1.1.0"
 description = "LynxOCR - Offline OCR Text Recognition"
-authors = ["you"]
-edition = "2021"
+authors = ["tabortao"]
+edition = "2026"
 
 [lib]
 name = "lynxocr_lib"
@@ -23,7 +23,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # Async runtime
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
 
 # File handling
 tempfile = "3"
@@ -65,9 +65,17 @@ pdfium-render = "0.8"
 [profile.dev]
 incremental = true
 
+[profile.dev.package."*"]
+opt-level = 2
+debug = false
+
 [profile.release]
-codegen-units = 1
-lto = true
-opt-level = "s"
+opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+lto = "fat"
 panic = "abort"
+incremental = false
+codegen-units = 1
 strip = true
