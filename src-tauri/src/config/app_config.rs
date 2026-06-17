@@ -16,6 +16,11 @@ pub struct AppConfig {
     /// OCR screenshot shortcut (e.g. "Ctrl+Shift+O")
     #[serde(default = "default_ocr_screenshot_shortcut")]
     pub ocr_screenshot_shortcut: String,
+    /// OCR model download URL templates, tried in order.
+    /// Use `{model}` placeholder for the model name (e.g. "ppocr-v6").
+    /// Edit `config.json` to change without recompiling.
+    #[serde(default = "default_model_download_urls")]
+    pub model_download_urls: Vec<String>,
 }
 
 fn default_ocr_screenshot_shortcut() -> String {
@@ -24,6 +29,14 @@ fn default_ocr_screenshot_shortcut() -> String {
 
 fn default_active_ocr_model() -> String {
     "ppocr-v6".to_string()
+}
+
+fn default_model_download_urls() -> Vec<String> {
+    vec![
+        "https://gitcode.com/tabortao/LynxOCR/releases/download/model/{model}.zip".into(),
+        "https://gitee.com/tabortao/LynxOCR/releases/download/model/{model}.zip".into(),
+        "https://code2tabor.s3.bitiful.net/PPOCR/{model}.zip".into(),
+    ]
 }
 
 impl Default for AppConfig {
@@ -35,6 +48,7 @@ impl Default for AppConfig {
             active_ocr_model: default_active_ocr_model(),
             sidebar_collapsed: false,
             ocr_screenshot_shortcut: default_ocr_screenshot_shortcut(),
+            model_download_urls: default_model_download_urls(),
         }
     }
 }

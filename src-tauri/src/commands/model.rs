@@ -18,9 +18,9 @@ pub async fn download_specific_model(
     state: tauri::State<'_, AppState>,
     app_handle: tauri::AppHandle,
 ) -> Result<String, String> {
-    let model_path = {
+    let (model_path, download_urls) = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
-        config.model_path.clone()
+        (config.model_path.clone(), config.model_download_urls.clone())
     };
 
     let app_handle_clone = app_handle.clone();
@@ -36,7 +36,7 @@ pub async fn download_specific_model(
                     return Ok("Model already installed".into());
                 }
                 manager
-                    .download_ppocr(&model_name, &|progress| {
+                    .download_ppocr(&model_name, &download_urls, &|progress| {
                         let _ = app_handle_clone.emit("model-download-progress", progress.clone());
                     })
                     .map_err(|e| e.to_string())?;

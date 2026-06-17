@@ -102,5 +102,5 @@ fn main() {
     // Cleanup
     let _ = std::fs::remove_dir_all(&temp);
     println!("\nDone! ppocr-v4.zip and ppocr-v5.zip are ready.");
-    println!("Upload these to: https://gitcode.com/tabortao/VelociText/releases/download/ocr/");
+    println!("Upload these to: https://gitcode.com/tabortao/LynxOCR/releases/download/model/");
 }

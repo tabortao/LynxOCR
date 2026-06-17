@@ -39,7 +39,7 @@ mod ocr_integration {
             return;
         }
 
-        let mut engine = OcrEngine::new_with_memory(&model_dir, false)
+        let mut engine = OcrEngine::new(&model_dir)
             .expect(&format!("[{model_version}] Failed to init OCR engine"));
 
         let result = engine

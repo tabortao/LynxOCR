@@ -76,6 +76,7 @@ MIT
 LynxOCR 的构建得益于以下优秀开源项目：
 
 - [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) — 出色的多语言 OCR 工具
+- [OnnxOCR](https://github.com/jingsongliujing/OnnxOCR) — 高性能 PaddleOCR ONNX 推理引擎
 - [paddle-ocr-rs](https://github.com/mg-chao/paddle-ocr-rs) — PaddleOCR ONNX 推理的 Rust 绑定
 - [xcap](https://github.com/nicepkg/xcap) — 跨平台屏幕捕获库
 - [pdfium-render](https://github.com/ajrcarey/pdfium-render) — Rust PDF 渲染库

@@ -77,6 +77,7 @@ MIT
 LynxOCR is built on the shoulders of giants. Special thanks to these outstanding open-source projects:
 
 - [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) — Outstanding multilingual OCR toolkit
+- [OnnxOCR](https://github.com/jingsongliujing/OnnxOCR) — High-performance PaddleOCR ONNX inference engine
 - [paddle-ocr-rs](https://github.com/mg-chao/paddle-ocr-rs) — Rust bindings for PaddleOCR ONNX inference
 - [xcap](https://github.com/nicepkg/xcap) — Cross-platform screen capture library
 - [pdfium-render](https://github.com/ajrcarey/pdfium-render) — Rust bindings for PDFium

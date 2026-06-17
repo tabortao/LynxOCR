@@ -1,6 +1,6 @@
 [package]
 name = "lynxocr"
-version = "0.1.0"
+version = "1.0.1"
 description = "LynxOCR - Offline OCR Text Recognition"
 authors = ["you"]
 edition = "2021"
@@ -42,6 +42,7 @@ ureq = { version = "2", features = ["tls"] }
 paddle-ocr-rs = "0.6"
 ort = { version = "=2.0.0-rc.10", default-features = false }
 num_cpus = "1.17"
+
 image = "0.25"
 rayon = "1.10"
 

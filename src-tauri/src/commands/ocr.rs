@@ -7,10 +7,8 @@ use tauri_plugin_opener::OpenerExt;
 
 /// Create a Pdfium instance, looking for pdfium.dll in multiple locations.
 fn create_pdfium(app: &tauri::AppHandle) -> Result<pdfium_render::prelude::Pdfium, String> {
-    // Candidate paths to search for pdfium.dll
     let mut candidates: Vec<std::path::PathBuf> = Vec::new();
 
-    // 1. Next to the executable
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(parent) = exe_path.parent() {
             candidates.push(parent.join("pdfium.dll"));
@@ -18,18 +16,15 @@ fn create_pdfium(app: &tauri::AppHandle) -> Result<pdfium_render::prelude::Pdfiu
         }
     }
 
-    // 2. Tauri resource directory
     if let Ok(resource_dir) = app.path().resource_dir() {
         candidates.push(resource_dir.join("pdfium.dll"));
         candidates.push(resource_dir.join("bin").join("pdfium.dll"));
     }
 
-    // 3. Current working directory
     if let Ok(cwd) = std::env::current_dir() {
         candidates.push(cwd.join("pdfium.dll"));
     }
 
-    // Try each candidate
     for dll_path in &candidates {
         if dll_path.exists() {
             log::info!("[PDF] Loading pdfium.dll from: {}", dll_path.display());
@@ -43,7 +38,6 @@ fn create_pdfium(app: &tauri::AppHandle) -> Result<pdfium_render::prelude::Pdfiu
         }
     }
 
-    // Fall back to system library
     log::info!("[PDF] Falling back to system pdfium library");
     let bindings = pdfium_render::prelude::Pdfium::bind_to_library(
         pdfium_render::prelude::Pdfium::pdfium_platform_library_name(),
@@ -62,53 +56,18 @@ fn create_pdfium(app: &tauri::AppHandle) -> Result<pdfium_render::prelude::Pdfiu
     Ok(pdfium_render::prelude::Pdfium::new(bindings))
 }
 
-/// Render a PDF page to a PNG image using pdfium-render.
-/// Returns the path to the rendered PNG file.
-fn render_pdf_page_to_image(
-    pdfium: &pdfium_render::prelude::Pdfium,
-    pdf_path: &str,
-    page_index: u16,
-    dpi: f32,
-) -> Result<String, String> {
-    let document = pdfium
-        .load_pdf_from_file(pdf_path, None)
-        .map_err(|e| format!("Failed to open PDF: {e}"))?;
-
-    let pages = document.pages();
-    if page_index as usize >= pages.len() as usize {
-        return Err(format!(
-            "Page index {} out of range (total: {})",
-            page_index,
-            pages.len()
-        ));
+/// Get or create the OCR engine from AppState. Reuses cached engine if available.
+fn get_or_create_engine<'a>(
+    engine_arc: &'a std::sync::Arc<std::sync::Mutex<Option<OcrEngine>>>,
+    model_dir: &std::path::Path,
+) -> Result<std::sync::MutexGuard<'a, Option<OcrEngine>>, String> {
+    let mut guard = engine_arc.lock().map_err(|e| e.to_string())?;
+    if guard.is_none() {
+        let eng = OcrEngine::new(model_dir)
+            .map_err(|e| format!("Failed to create OCR engine: {e}"))?;
+        *guard = Some(eng);
     }
-
-    let page = pages
-        .get(page_index)
-        .map_err(|e| format!("Failed to get page: {e}"))?;
-
-    // Render at specified DPI (default 72 DPI = 1x scale)
-    let scale = dpi / 72.0;
-    let target_width = (page.width().value as f32 * scale) as i32;
-    let target_height = (page.height().value as f32 * scale) as i32;
-
-    let config = pdfium_render::prelude::PdfRenderConfig::new()
-        .set_target_width(target_width)
-        .set_target_height(target_height);
-
-    let bitmap = page
-        .render_with_config(&config)
-        .map_err(|e| format!("Failed to render PDF page: {e}"))?;
-
-    // Save as PNG
-    let temp_dir = std::env::temp_dir();
-    let png_path = temp_dir.join(format!("lynxocr_pdf_page_{}.png", page_index));
-    bitmap
-        .as_image()
-        .save(&png_path)
-        .map_err(|e| format!("Failed to save rendered page: {e}"))?;
-
-    Ok(png_path.to_string_lossy().to_string())
+    Ok(guard)
 }
 
 /// Get the number of pages in a PDF file.
@@ -129,7 +88,6 @@ pub async fn pdf_get_page_count(
 }
 
 /// Render a specific page of a PDF to a PNG image.
-/// Returns the path to the rendered PNG file.
 #[tauri::command]
 pub async fn pdf_render_page(
     app: tauri::AppHandle,
@@ -142,14 +100,49 @@ pub async fn pdf_render_page(
 
     tokio::task::spawn_blocking(move || {
         let pdfium = create_pdfium(&app)?;
-        render_pdf_page_to_image(&pdfium, &pdf_path, page_index, dpi)
+        let document = pdfium
+            .load_pdf_from_file(&pdf_path, None)
+            .map_err(|e| format!("Failed to open PDF: {e}"))?;
+
+        let pages = document.pages();
+        if page_index as usize >= pages.len() as usize {
+            return Err(format!(
+                "Page index {} out of range (total: {})",
+                page_index,
+                pages.len()
+            ));
+        }
+
+        let page = pages
+            .get(page_index)
+            .map_err(|e| format!("Failed to get page: {e}"))?;
+
+        let scale = dpi / 72.0;
+        let target_width = (page.width().value as f32 * scale) as i32;
+        let target_height = (page.height().value as f32 * scale) as i32;
+
+        let config = pdfium_render::prelude::PdfRenderConfig::new()
+            .set_target_width(target_width)
+            .set_target_height(target_height);
+
+        let bitmap = page
+            .render_with_config(&config)
+            .map_err(|e| format!("Failed to render PDF page: {e}"))?;
+
+        let temp_dir = std::env::temp_dir();
+        let png_path = temp_dir.join(format!("lynxocr_pdf_page_{}.png", page_index));
+        bitmap
+            .as_image()
+            .save(&png_path)
+            .map_err(|e| format!("Failed to save rendered page: {e}"))?;
+
+        Ok(png_path.to_string_lossy().to_string())
     })
     .await
     .map_err(|e| format!("PDF render task failed: {e}"))?
 }
 
 /// Run OCR on a PDF file by rendering each page and recognizing text.
-/// Returns a list of OcrResult, one per page.
 #[tauri::command]
 pub async fn ocr_recognize_pdf(
     app: tauri::AppHandle,
@@ -165,7 +158,6 @@ pub async fn ocr_recognize_pdf(
     };
 
     let model_dir = Path::new(&model_path).join(&model_version);
-
     if !is_ppocr_installed_at(&model_dir) {
         return Err(format!(
             "OCR model {} is not installed. Please download it from Model Settings.",
@@ -177,7 +169,6 @@ pub async fn ocr_recognize_pdf(
 
     tokio::task::spawn_blocking(move || {
         let pdfium = create_pdfium(&app)?;
-
         let document = pdfium
             .load_pdf_from_file(&pdf_path, None)
             .map_err(|e| format!("Failed to open PDF: {e}"))?;
@@ -186,9 +177,13 @@ pub async fn ocr_recognize_pdf(
         let mut results = Vec::with_capacity(page_count);
 
         let mut guard = engine_arc.lock().map_err(|e| e.to_string())?;
+        if guard.is_none() {
+            let eng = OcrEngine::new(&model_dir).map_err(|e| e.to_string())?;
+            *guard = Some(eng);
+        }
+        let eng = guard.as_mut().unwrap();
 
         for page_idx in 0..page_count {
-            // Render page to image
             let page = document
                 .pages()
                 .get(page_idx as u16)
@@ -206,20 +201,12 @@ pub async fn ocr_recognize_pdf(
                 .render_with_config(&config)
                 .map_err(|e| format!("Failed to render page {page_idx}: {e}"))?;
 
-            // Convert bitmap to DynamicImage
             let img = bitmap.as_image();
-
-            // Run OCR on the rendered image
-            let ocr_result = if let Some(ref mut eng) = *guard {
-                eng.recognize_from_image(&img, 1.0)
-                    .map_err(|e| e.to_string())?
-            } else {
-                let mut eng =
-                    OcrEngine::new_with_memory(&model_dir, false).map_err(|e| e.to_string())?;
-                let result = eng.recognize_from_image(&img, 1.0).map_err(|e| e.to_string());
-                *guard = Some(eng);
-                result?
-            };
+            // Clone for OCR (which takes ownership) and for saving
+            let ocr_img = img.clone();
+            let ocr_result = eng
+                .recognize_from_image(ocr_img)
+                .map_err(|e| e.to_string())?;
 
             // Save rendered page as temp PNG for preview
             let temp_dir = std::env::temp_dir();
@@ -241,11 +228,8 @@ pub async fn ocr_recognize_pdf(
 }
 
 /// Run OCR on an image file using the specified model version.
-///
-/// Uses session reuse: the ONNX session is kept alive in AppState between calls
-/// (references snow-shot's OcrService pattern). On first call or model switch,
-/// a new engine is created and cached. Subsequent calls reuse the cached engine
-/// for ~10x faster initialization.
+/// Engine is cached for reuse; caller should call `ocr_release` when done
+/// to free ONNX Runtime memory.
 #[tauri::command]
 pub async fn ocr_recognize(
     image_path: String,
@@ -258,7 +242,6 @@ pub async fn ocr_recognize(
     };
 
     let model_dir = Path::new(&model_path).join(&model_version);
-
     if !is_ppocr_installed_at(&model_dir) {
         return Err(format!(
             "OCR model {} is not installed. Please download it from Model Settings.",
@@ -269,21 +252,10 @@ pub async fn ocr_recognize(
     let engine_arc = state.ocr_engine.clone();
 
     tokio::task::spawn_blocking(move || {
-        let mut guard = engine_arc.lock().map_err(|e| e.to_string())?;
-        if let Some(ref mut eng) = *guard {
-            // Reuse existing engine — fast path
-            eng.recognize_from_path(Path::new(&image_path))
-                .map_err(|e| e.to_string())
-        } else {
-            // First call: create and cache engine
-            let mut eng =
-                OcrEngine::new_with_memory(&model_dir, false).map_err(|e| e.to_string())?;
-            let result = eng
-                .recognize_from_path(Path::new(&image_path))
-                .map_err(|e| e.to_string());
-            *guard = Some(eng);
-            result
-        }
+        let mut guard = get_or_create_engine(&engine_arc, &model_dir)?;
+        let eng = guard.as_mut().unwrap();
+        eng.recognize_from_path(Path::new(&image_path))
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("OCR task failed: {e}"))?
@@ -302,7 +274,6 @@ pub async fn ocr_recognize_bytes(
     };
 
     let model_dir = Path::new(&model_path).join(&model_version);
-
     if !is_ppocr_installed_at(&model_dir) {
         return Err(format!(
             "OCR model {} is not installed. Please download it from Model Settings.",
@@ -313,27 +284,16 @@ pub async fn ocr_recognize_bytes(
     let engine_arc = state.ocr_engine.clone();
 
     tokio::task::spawn_blocking(move || {
-        let mut guard = engine_arc.lock().map_err(|e| e.to_string())?;
-        if let Some(ref mut eng) = *guard {
-            eng.recognize_from_bytes(&image_data)
-                .map_err(|e| e.to_string())
-        } else {
-            let mut eng =
-                OcrEngine::new_with_memory(&model_dir, false).map_err(|e| e.to_string())?;
-            let result = eng
-                .recognize_from_bytes(&image_data)
-                .map_err(|e| e.to_string());
-            *guard = Some(eng);
-            result
-        }
+        let mut guard = get_or_create_engine(&engine_arc, &model_dir)?;
+        let eng = guard.as_mut().unwrap();
+        eng.recognize_from_bytes(&image_data)
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("OCR task failed: {e}"))?
 }
 
 /// Capture all monitors and stitch them into a single screenshot.
-/// Returns the image path, dimensions, and bounding box for positioning the screenshot window.
-/// References snow-shot's `capture_all_monitors` command.
 #[tauri::command]
 pub async fn capture_all_monitors() -> Result<serde_json::Value, String> {
     tokio::task::spawn_blocking(move || capture_all_monitors_inner())
@@ -342,8 +302,6 @@ pub async fn capture_all_monitors() -> Result<serde_json::Value, String> {
 }
 
 /// Run OCR on a cropped region of a captured screenshot.
-/// The frontend provides the crop coordinates after user selection.
-/// Also saves the cropped region as a temp PNG for preview display.
 #[tauri::command]
 pub async fn ocr_screenshot_region(
     image_path: String,
@@ -360,7 +318,6 @@ pub async fn ocr_screenshot_region(
     };
 
     let model_dir = Path::new(&model_path).join(&model_version);
-
     if !is_ppocr_installed_at(&model_dir) {
         return Err(format!(
             "OCR model {} is not installed. Please download it from Model Settings.",
@@ -371,11 +328,10 @@ pub async fn ocr_screenshot_region(
     let engine_arc = state.ocr_engine.clone();
 
     tokio::task::spawn_blocking(move || {
-        // Load the full screenshot
         let img = image::open(&image_path)
             .map_err(|e| format!("Failed to open screenshot: {e}"))?;
 
-        // Crop the selected region
+        // Crop the selected region (crop_imm creates a new view, no copy of full image)
         let cropped = img.crop_imm(x, y, width, height);
 
         // Save cropped region to temp file for preview
@@ -383,24 +339,21 @@ pub async fn ocr_screenshot_region(
         cropped
             .save(&cropped_path)
             .map_err(|e| format!("Failed to save cropped screenshot: {e}"))?;
-
         let cropped_path_str = cropped_path.to_string_lossy().to_string();
 
-        let mut guard = engine_arc.lock().map_err(|e| e.to_string())?;
-        let result = if let Some(ref mut eng) = *guard {
-            eng.recognize_from_image(&cropped, 1.0)
-                .map_err(|e| e.to_string())?
-        } else {
-            let mut eng =
-                OcrEngine::new_with_memory(&model_dir, false).map_err(|e| e.to_string())?;
-            let result = eng
-                .recognize_from_image(&cropped, 1.0)
-                .map_err(|e| e.to_string());
-            *guard = Some(eng);
-            result?
-        };
+        // Drop the full image now to free memory — only cropped region is needed for OCR
+        drop(img);
 
-        // Return OcrResult along with the cropped image path
+        let mut guard = engine_arc.lock().map_err(|e| e.to_string())?;
+        if guard.is_none() {
+            let eng = OcrEngine::new(&model_dir).map_err(|e| e.to_string())?;
+            *guard = Some(eng);
+        }
+        let eng = guard.as_mut().unwrap();
+        let result = eng
+            .recognize_from_image(cropped)
+            .map_err(|e| e.to_string())?;
+
         Ok(serde_json::json!({
             "ocrResult": result,
             "croppedImagePath": cropped_path_str,
@@ -411,8 +364,6 @@ pub async fn ocr_screenshot_region(
 }
 
 /// Copy text to the system clipboard.
-/// Uses `arboard` directly to avoid the "Document is not focused" error
-/// that occurs with the browser clipboard API.
 #[tauri::command]
 pub async fn copy_text_to_clipboard(text: String) -> Result<(), String> {
     tokio::task::spawn_blocking(move || {
@@ -434,32 +385,28 @@ pub async fn ocr_get_active_model(state: tauri::State<'_, AppState>) -> Result<S
 }
 
 /// Set the active OCR model version (saves to config, releases cached engine).
-/// The engine will be re-created on the next OCR call with the new model.
 #[tauri::command]
 pub async fn ocr_set_active_model(
     model_name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    // Validate model name
     let valid_models = ["ppocr-v4", "ppocr-v5", "ppocr-v6"];
     if !valid_models.contains(&model_name.as_str()) {
         return Err(format!("Unknown OCR model: {model_name}"));
     }
 
-    // Save to config
     {
         let mut config = state.config.lock().map_err(|e| e.to_string())?;
         config.active_ocr_model = model_name.clone();
         crate::config::app_config::AppConfig::save(&config).map_err(|e| e.to_string())?;
     }
 
-    // Update in-memory state
     {
         let mut active = state.active_ocr_model.lock().map_err(|e| e.to_string())?;
         *active = model_name.clone();
     }
 
-    // Release cached engine (will be re-created with new model on next OCR call)
+    // Release engine — will be re-created with new model on next call
     {
         let mut engine = state.ocr_engine.lock().map_err(|e| e.to_string())?;
         *engine = None;
@@ -469,29 +416,23 @@ pub async fn ocr_set_active_model(
     Ok(())
 }
 
-/// Release the cached OCR engine to free ONNX Runtime resources.
-/// References snow-shot's `ocr_release` command.
+/// Release the cached OCR engine to free ONNX Runtime memory.
+/// Should be called after OCR operations are complete to keep memory low.
 #[tauri::command]
 pub async fn ocr_release(state: tauri::State<'_, AppState>) -> Result<(), String> {
     let mut engine = state.ocr_engine.lock().map_err(|e| e.to_string())?;
     *engine = None;
-    log::info!("[ocr_release] engine released");
+    log::info!("[ocr_release] engine released — ONNX Runtime memory freed");
     Ok(())
 }
 
 /// Start screenshot selection by creating a transparent fullscreen window.
-/// References snow-shot's `create_draw_window` — transparent, frameless, always-on-top
-/// window covering all monitors with screenshot displayed at 1:1 scale.
-///
-/// The screenshot data is stored in AppState and retrieved by the screenshot window
-/// via `get_screenshot_data` command, avoiding event timing issues.
 #[tauri::command]
 pub async fn start_screenshot_selection(
     app: tauri::AppHandle,
     model_version: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
-    // Step 1: Capture all monitors
     let capture_result = capture_all_monitors_inner()?;
 
     let bbox = capture_result
@@ -502,7 +443,6 @@ pub async fn start_screenshot_selection(
     let bbox_width = bbox["width"].as_u64().ok_or("Missing bbox width")? as u32;
     let bbox_height = bbox["height"].as_u64().ok_or("Missing bbox height")? as u32;
 
-    // Step 2: Store screenshot data in AppState for the screenshot window to retrieve
     {
         let mut pending = state.pending_screenshot.lock().map_err(|e| e.to_string())?;
         *pending = Some(serde_json::json!({
@@ -513,13 +453,11 @@ pub async fn start_screenshot_selection(
         }));
     }
 
-    // Step 3: Close any existing screenshot window
     if let Some(existing) = app.get_webview_window("screenshot") {
         let _ = existing.close();
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
-    // Step 4: Create transparent fullscreen window covering all monitors
     let _window = tauri::WebviewWindowBuilder::new(&app, "screenshot", tauri::WebviewUrl::App("screenshot.html".into()))
         .title("LynxOCR Screenshot")
         .inner_size(bbox_width as f64, bbox_height as f64)
@@ -535,29 +473,22 @@ pub async fn start_screenshot_selection(
 
     log::info!(
         "[start_screenshot_selection] window created, size={}x{}, pos=({},{})",
-        bbox_width,
-        bbox_height,
-        min_x,
-        min_y
+        bbox_width, bbox_height, min_x, min_y
     );
 
     Ok(capture_result)
 }
 
-/// Get the pending screenshot data. Called by the screenshot window after it finishes loading.
-/// Returns the data once and clears it from AppState.
+/// Get the pending screenshot data.
 #[tauri::command]
 pub async fn get_screenshot_data(
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
     let mut pending = state.pending_screenshot.lock().map_err(|e| e.to_string())?;
-    pending
-        .take()
-        .ok_or("No pending screenshot data".to_string())
+    pending.take().ok_or("No pending screenshot data".to_string())
 }
 
-/// Close the screenshot window. Called from the screenshot window itself after
-/// region selection or ESC cancel. References snow-shot's `closeWindowAfterDelay`.
+/// Close the screenshot window.
 #[tauri::command]
 pub async fn close_screenshot_window(app: tauri::AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window("screenshot") {
@@ -570,9 +501,6 @@ pub async fn close_screenshot_window(app: tauri::AppHandle) -> Result<(), String
 }
 
 /// Called from the screenshot window after OCR completes.
-/// Emits the result to the main window so it can display the result.
-/// Includes the cropped screenshot path for preview display.
-/// When the main window is hidden (minimized to tray), shows a desktop toast notification.
 #[tauri::command]
 pub async fn screenshot_ocr_done(
     app: tauri::AppHandle,
@@ -581,13 +509,11 @@ pub async fn screenshot_ocr_done(
     cropped_image_path: Option<String>,
     ocr_result: Option<serde_json::Value>,
 ) -> Result<(), String> {
-    // Check if main window is visible
     let main_visible = app
         .get_webview_window("main")
         .map(|w| w.is_visible().unwrap_or(false))
         .unwrap_or(false);
 
-    // Emit to the main window specifically
     if let Some(main_window) = app.get_webview_window("main") {
         main_window
             .emit(
@@ -602,7 +528,6 @@ pub async fn screenshot_ocr_done(
             .map_err(|e| format!("Failed to emit screenshot-ocr-result: {e}"))?;
     }
 
-    // If main window is not visible (minimized to tray), show a desktop toast
     if !main_visible && !text.is_empty() {
         show_desktop_toast(&app, "文本复制成功");
     }
@@ -610,8 +535,7 @@ pub async fn screenshot_ocr_done(
     Ok(())
 }
 
-/// Show a desktop toast notification by creating a small transparent overlay window.
-/// The window auto-closes after 2 seconds via a Rust-side timer.
+/// Show a desktop toast notification.
 fn show_desktop_toast(app: &tauri::AppHandle, message: &str) {
     let html_content = format!(
         r#"<!DOCTYPE html>
@@ -647,10 +571,8 @@ body {{
 <body><div class="toast">{message}</div></body></html>"#
     );
 
-    // Save HTML to temp file
     let temp_html = std::env::temp_dir().join("lynxocr_toast.html");
     if std::fs::write(&temp_html, &html_content).is_ok() {
-        // Get primary monitor dimensions for positioning
         let monitors = xcap::Monitor::all().ok();
         let (screen_w, screen_h) = if let Some(ref mons) = monitors {
             if let Some(primary) = mons.first() {
@@ -662,7 +584,6 @@ body {{
             (1920.0, 1080.0)
         };
 
-        // Estimate toast size
         let toast_w = 300.0;
         let toast_h = 50.0;
         let pos_x = (screen_w - toast_w) / 2.0;
@@ -689,20 +610,18 @@ body {{
         {
             log::info!("[show_desktop_toast] toast window created");
 
-            // Auto-close after 2.3 seconds via Rust timer
             let app_clone = app.clone();
             std::thread::spawn(move || {
                 std::thread::sleep(std::time::Duration::from_millis(2300));
                 if let Some(window) = app_clone.get_webview_window("toast") {
                     let _ = window.close();
-                    log::info!("[show_desktop_toast] toast window auto-closed");
                 }
             });
         }
     }
 }
 
-/// Inner implementation of capture_all_monitors (reusable without tauri::State).
+/// Inner implementation of capture_all_monitors.
 fn capture_all_monitors_inner() -> Result<serde_json::Value, String> {
     let monitors =
         xcap::Monitor::all().map_err(|e| format!("Failed to enumerate monitors: {e}"))?;
@@ -711,7 +630,6 @@ fn capture_all_monitors_inner() -> Result<serde_json::Value, String> {
         return Err("No monitors found".to_string());
     }
 
-    // Calculate bounding box of all monitors
     let mut min_x = i32::MAX;
     let mut min_y = i32::MAX;
     let mut max_x = i32::MIN;
@@ -727,16 +645,11 @@ fn capture_all_monitors_inner() -> Result<serde_json::Value, String> {
     let bbox_width = (max_x - min_x) as u32;
     let bbox_height = (max_y - min_y) as u32;
 
-    // Capture all monitors in parallel
     let captures: Vec<_> = monitors
         .iter()
-        .map(|m| {
-            let img = m.capture_image();
-            (m.x(), m.y(), img)
-        })
+        .map(|m| (m.x(), m.y(), m.capture_image()))
         .collect();
 
-    // Stitch images into a single canvas
     let mut canvas = image::RgbaImage::new(bbox_width, bbox_height);
 
     for (x, y, cap) in captures {

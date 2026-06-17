@@ -155,10 +155,12 @@ impl ModelManager {
         ]
     }
 
-    /// Download PaddleOCR ONNX model from gitcode.com.
+    /// Download PaddleOCR ONNX model.
+    /// `url_templates` are tried in order; `{model}` is replaced with `model_name`.
     pub fn download_ppocr(
         &self,
         model_name: &str,
+        url_templates: &[String],
         on_progress: &dyn Fn(DownloadProgress),
     ) -> AppResult<String> {
         let model_dir = Path::new(&self.models_dir).join(model_name);
@@ -175,16 +177,10 @@ impl ModelManager {
             return Ok(model_dir.to_string_lossy().to_string());
         }
 
-        let urls = vec![
-            format!(
-                "https://gitcode.com/tabortao/VelociText/releases/download/model/{}.zip",
-                model_name
-            ),
-            format!(
-                "https://gitee.com/tabortao/VelociText/releases/download/model/{}.zip",
-                model_name
-            ),
-        ];
+        let urls: Vec<String> = url_templates
+            .iter()
+            .map(|t| t.replace("{model}", model_name))
+            .collect();
 
         on_progress(DownloadProgress {
             model_name: model_name.into(),

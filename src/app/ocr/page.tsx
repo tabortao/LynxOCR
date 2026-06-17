@@ -53,7 +53,7 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   const { t } = useAppContext()
   const [items, setItems] = useState<BatchOcrItem[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
-  const [activeModel, setActiveModel] = useState("ppocr-v5")
+  const [activeModel, setActiveModel] = useState("ppocr-v6")
   const [installedModels, setInstalledModels] = useState<Set<string>>(new Set())
   const [flashMessage, setFlashMessage] = useState("")
   const [expandedIdx, setExpandedIdx] = useState<number>(-1)
@@ -103,7 +103,7 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
     }
     load()
 
-    // Release OCR engine when leaving the OCR page to free ~400MB ONNX Runtime memory
+    // Release OCR engine when leaving the OCR page to free ONNX Runtime memory
     return () => {
       invoke("ocr_release").catch(() => {
         // ignore (might already be released)
@@ -364,6 +364,8 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
         time: (totalTimeMs / 1000).toFixed(1),
       })
     )
+    // Release engine after batch completes to free memory
+    invoke("ocr_release").catch(() => {})
   }, [modelInstalled, activeModel, showFlash, t])
 
   // Keep ref in sync so addFiles can call it without stale closure
@@ -398,6 +400,8 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   const handleClear = () => {
     setItems([])
     setExpandedIdx(-1)
+    // Release engine after clearing results
+    invoke("ocr_release").catch(() => {})
   }
 
   const handleRemoveItem = (idx: number) => {
