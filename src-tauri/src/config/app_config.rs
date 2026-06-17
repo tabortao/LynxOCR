@@ -33,8 +33,7 @@ fn default_active_ocr_model() -> String {
 
 fn default_model_download_urls() -> Vec<String> {
     vec![
-        "https://gitcode.com/tabortao/LynxOCR/releases/download/model/{model}.zip".into(),
-        "https://gitee.com/tabortao/LynxOCR/releases/download/model/{model}.zip".into(),
+        "https://www.modelscope.cn/models/tabortao/sherpa-onnx-asr-int8/resolve/master/PaddleOCR-onnx/{model}.zip".into(),
         "https://code2tabor.s3.bitiful.net/PPOCR/{model}.zip".into(),
     ]
 }

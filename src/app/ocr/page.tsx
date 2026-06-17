@@ -441,33 +441,26 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
     const completedItems = items.filter((item) => item.state === "completed" && item.result)
     if (completedItems.length === 0) return
 
-    if (completedItems.length === 1) {
-      const item = completedItems[0]
-      const text = item.result!.textBlocks.map((b) => b.text).join("\n")
-      const baseName = item.path.replace(/\.[^.]+$/, "")
-      const exportPath = `${baseName}_ocr.txt`
-      try {
-        await invoke("write_text_file", { path: exportPath, content: text })
-        await invoke("open_file_with_system", { path: exportPath })
-        showFlash(t("ocr.exportTxt"))
-      } catch (err) {
-        console.error("Export failed:", err)
-      }
-      return
-    }
+    // Combine all results into a single text
+    const allText = completedItems
+      .map((item) => item.result!.textBlocks.map((b) => b.text).join("\n"))
+      .join("\n\n---\n\n")
 
-    // Batch export: one txt per image
-    for (const item of completedItems) {
-      const text = item.result!.textBlocks.map((b) => b.text).join("\n")
-      const baseName = item.path.replace(/\.[^.]+$/, "")
-      const exportPath = `${baseName}_ocr.txt`
-      try {
-        await invoke("write_text_file", { path: exportPath, content: text })
-      } catch (err) {
-        console.error("Export failed for:", item.fileName, err)
-      }
+    if (!allText) return
+
+    // Determine export path from the first item's path
+    // Strip #page=N suffix (for PDF items) and replace extension
+    const firstPath = completedItems[0].path.replace(/#page=\d+$/i, "")
+    const baseName = firstPath.replace(/\.[^.]+$/, "")
+    const exportPath = `${baseName}_ocr.txt`
+
+    try {
+      await invoke("write_text_file", { path: exportPath, content: allText })
+      await invoke("open_file_with_system", { path: exportPath })
+      showFlash(t("ocr.exportTxt"))
+    } catch (err) {
+      console.error("Export failed:", err)
     }
-    showFlash(t("ocr.batchExportDone", { count: completedItems.length }))
   }
 
   const handleScreenshotOCR = async () => {

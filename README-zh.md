@@ -63,6 +63,24 @@ OCR 模型可在应用内通过 **设置 → 模型管理 → 下载** 获取。
 
 模型存储在可配置的本地目录中，默认路径为 `{应用数据目录}/models/`。
 
+### 模型存放路径
+下载的模型会存放在应用数据目录下的 `models/` 文件夹中：
+
+| 系统 | 模型存放路径 |
+|------|-------------|
+| Windows | `%APPDATA%\LynxOCR\models` |
+| macOS | `~/Library/Application Support/LynxOCR/models` |
+| Linux | `~/.local/share/LynxOCR/models` |
+
+**手动下载地址**
+- Gitcode:[https://gitcode.com/tabortao/LynxOCR/releases/model](https://gitcode.com/tabortao/LynxOCR/releases/model)
+- Gitee:[https://gitee.com/tabortao/LynxOCR/releases/model](https://gitee.com/tabortao/LynxOCR/releases/model)
+- 魔塔社区：[https://www.modelscope.cn/models/tabortao/sherpa-onnx-asr-int8/tree/master/PaddleOCR-onnx](https://www.modelscope.cn/models/tabortao/sherpa-onnx-asr-int8/tree/master/PaddleOCR-onnx)
+- 蓝奏云：[https://wwbtm.lanzouu.com/b01d70renc](https://wwbtm.lanzouu.com/b01d70renc)  
+密码：`fwoq`
+
+下载后解压到上述对应系统的模型目录即可。
+
 ## 贡献
 
 LynxOCR 正在积极开发中，欢迎提交 Issue 和 Pull Request。
