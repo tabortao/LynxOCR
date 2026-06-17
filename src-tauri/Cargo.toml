@@ -1,0 +1,72 @@
+[package]
+name = "lynxocr"
+version = "0.1.0"
+description = "LynxOCR - Offline OCR Text Recognition"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "lynxocr_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+log = "0.4"
+tauri-plugin-log = "2"
+tauri = { version = "2", features = ["protocol-asset", "tray-icon"] }
+tauri-plugin-opener = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# File handling
+tempfile = "3"
+
+# Zip extraction for model packages
+zip = { version = "2", features = ["deflate", "xz"] }
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# HTTP download
+ureq = { version = "2", features = ["tls"] }
+
+# OCR (PaddleOCR via ONNX Runtime)
+paddle-ocr-rs = "0.6"
+ort = { version = "=2.0.0-rc.10", default-features = false }
+num_cpus = "1.17"
+image = "0.25"
+rayon = "1.10"
+
+# Screenshot (cross-platform screen capture)
+xcap = "0.3"
+tauri-plugin-clipboard-manager = "2"
+
+# Clipboard
+arboard = "3"
+
+# Global shortcuts
+tauri-plugin-global-shortcut = "2"
+
+# Single instance
+tauri-plugin-single-instance = "2"
+
+# PDF rendering
+pdfium-render = "0.8"
+
+[profile.dev]
+incremental = true
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
