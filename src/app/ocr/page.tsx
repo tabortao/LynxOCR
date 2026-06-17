@@ -511,18 +511,10 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
           </Button>
         )}
         {batchProcessing && (
-          <div className="flex items-center gap-2 min-w-[200px]">
-            <Progress
-              value={batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0}
-              className="h-2 flex-1"
-            />
-            <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
-              {batchProgress.total > 0
-                ? `${Math.round((batchProgress.current / batchProgress.total) * 100)}%`
-                : "0%"}
-              {" "}({batchProgress.current}/{batchProgress.total})
-            </span>
-          </div>
+          <Badge variant="secondary" className="h-9 px-3 tabular-nums">
+            {Math.round((batchProgress.current / Math.max(batchProgress.total, 1)) * 100)}%
+            {" "}({batchProgress.current}/{batchProgress.total})
+          </Badge>
         )}
         {hasCompleted && (
           <Button onClick={handleCopyAllText} variant="outline" size="sm">
@@ -572,7 +564,7 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
               <p className="text-xs text-muted-foreground">{t("ocr.desc")}</p>
             </div>
             <Button onClick={handleOpenFile} variant="default">
-              <UploadIcon className="size-4 mr-2" />
+              <UploadIcon className="size-4 mr-1" />
               {t("ocr.selectImage")}
             </Button>
           </CardContent>
@@ -580,7 +572,19 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
       ) : (
         /* Batch items list */
         <div className="space-y-2">
-          {items.map((item, idx) => (
+          {items.map((item, idx) => {
+            const totalInBatch = batchProgress.total || items.filter((i) => i.state === "loading" || i.state === "completed" || i.state === "error").length
+            const doneCount = items.filter((i) => i.state === "completed" || i.state === "error").length
+            let progressPct = 0
+            if (item.state === "completed" || item.state === "error") {
+              progressPct = 100
+            } else if (item.state === "loading") {
+              progressPct = totalInBatch > 0 ? Math.round(((doneCount + 0.5) / totalInBatch) * 100) : 0
+            } else {
+              progressPct = totalInBatch > 0 ? Math.round((doneCount / totalInBatch) * 100) : 0
+            }
+
+            return (
             <Card key={idx} className={expandedIdx === idx ? "ring-1 ring-primary/30" : ""}>
               {/* Item header - always visible */}
               <div
@@ -608,9 +612,17 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
                   <p className="text-sm font-medium truncate">{item.fileName}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {item.state === "loading" && (
-                      <div className="flex items-center gap-1.5">
-                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary" />
-                        <span className="text-xs text-muted-foreground">{t("ocr.processing")}</span>
+                      <div className="w-full space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary shrink-0" />
+                            <span className="text-xs text-muted-foreground">{t("ocr.processing")}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {progressPct}% · {doneCount + 1}/{totalInBatch}
+                          </span>
+                        </div>
+                        <Progress value={progressPct} className="h-1.5" />
                       </div>
                     )}
                     {item.state === "completed" && item.result && (
@@ -687,8 +699,11 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
                     {/* OCR result */}
                     <div>
                       {item.state === "loading" && (
-                        <div className="flex items-center justify-center py-8">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+                        <div className="flex flex-col items-center justify-center py-8 gap-2">
+                          <Progress value={progressPct} className="h-2 w-48" />
+                          <div className="text-xs text-muted-foreground tabular-nums">
+                            {progressPct}% · {doneCount + 1}/{totalInBatch}
+                          </div>
                         </div>
                       )}
 
@@ -734,7 +749,8 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
                 </CardContent>
               )}
             </Card>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>
