@@ -81,6 +81,36 @@ OCR 模型可在应用内通过 **设置 → 模型管理 → 下载** 获取。
 
 下载后解压到上述对应系统的模型目录即可。
 
+## HTTP API 服务
+
+LynxOCR 内置了 RESTful HTTP API 服务，允许其他应用程序通过 HTTP 调用 OCR 文字识别功能。支持三种输入方式：**本地图片上传**、**Base64 编码**、**图床链接**。
+
+### 配置与启动
+
+在应用内通过 **API 服务** 页面启动，默认端口 `9720`。也可设置开机自启动。
+
+### 快速测试
+
+```bash
+# 健康检查
+curl http://localhost:9720/api/v1/health
+
+# 本地图片 OCR
+curl -X POST http://localhost:9720/api/v1/ocr -F "image=@screenshot.png"
+
+# 图床链接 OCR
+curl -X POST http://localhost:9720/api/v1/ocr \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/image.png"}'
+
+# Base64 图片 OCR
+curl -X POST http://localhost:9720/api/v1/ocr \
+  -H "Content-Type: application/json" \
+  -d '{"image": "base64_encoded_string"}'
+```
+
+详细使用教程请参阅 [docs/API使用教程.md](docs/API使用教程.md)。
+
 ## 贡献
 
 LynxOCR 正在积极开发中，欢迎提交 Issue 和 Pull Request。

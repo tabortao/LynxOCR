@@ -1,10 +1,14 @@
 use serde::{Deserialize, Serialize};
 
-/// JSON body for base64 image OCR request.
+/// JSON body for OCR request (base64 image or image URL).
 #[derive(Debug, Deserialize)]
 pub struct OcrJsonRequest {
     /// Base64-encoded image data (without data URI prefix).
-    pub image: String,
+    /// Mutually exclusive with `url` — provide one or the other.
+    pub image: Option<String>,
+    /// URL of the image to download and OCR.
+    /// Mutually exclusive with `image` — provide one or the other.
+    pub url: Option<String>,
     /// Optional model version override.
     pub model: Option<String>,
 }

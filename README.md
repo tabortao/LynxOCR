@@ -64,6 +64,36 @@ OCR models can be downloaded from within the app via **Settings -> Model Managem
 
 Models are stored in a configurable local directory. The default path is `{app_data_dir}/models/`.
 
+## HTTP API Service
+
+LynxOCR includes a built-in RESTful HTTP API that allows other applications to call OCR text recognition via HTTP. Three input methods are supported: **local file upload**, **Base64 encoding**, and **image URL**.
+
+### Configuration & Startup
+
+Start the API server from the **API Service** page in the app. Default port is `9720`. Auto-start on launch is also supported.
+
+### Quick Test
+
+```bash
+# Health check
+curl http://localhost:9720/api/v1/health
+
+# Local image OCR
+curl -X POST http://localhost:9720/api/v1/ocr -F "image=@screenshot.png"
+
+# Image URL OCR
+curl -X POST http://localhost:9720/api/v1/ocr \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/image.png"}'
+
+# Base64 image OCR
+curl -X POST http://localhost:9720/api/v1/ocr \
+  -H "Content-Type: application/json" \
+  -d '{"image": "base64_encoded_string"}'
+```
+
+For detailed usage, see [docs/API使用教程.md](docs/API使用教程.md) (Chinese).
+
 ## Contributing
 
 LynxOCR is under active development. Contributions, issues, and feature requests are welcome.

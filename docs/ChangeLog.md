@@ -14,11 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - New Rust commands: `api_start_server`, `api_stop_server`, `api_get_server_status`, `write_text_file`, `open_file_with_system`
 - English i18n translations for all API settings UI
 - New `Switch` UI component
+- WebP image format support for OCR (enabled `webp` feature in `image` crate)
+- Image URL (图床) input support: `POST /api/v1/ocr` now accepts `{"url": "https://..."}` for remote images
+- Comprehensive API usage tutorial (Chinese): `docs/API使用教程.md`
+- API quick-start section in README.md and README-zh.md
 
 ### Changed
 - Default OCR model switched from PaddleOCR V5 to **PaddleOCR V6**
 - Model download moved to configurable URL templates (was hardcoded gitcode.com URL)
-- Page navigation: replaced `React.lazy` with keep-alive pattern (all pages rendered once, hidden via `display:none`), eliminating remount delays on page switch
 - Download agent: connect/read/write timeouts + 5 redirects follow
 - Updated `rebuild_ocr_zips.rs` example to point to LynxOCR repository
 

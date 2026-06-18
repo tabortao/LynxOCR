@@ -8,8 +8,10 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::str;
 use std::sync::{Arc, Mutex};
 use tokio::sync::oneshot;
 use tower_http::cors::{Any, CorsLayer};
@@ -356,28 +358,54 @@ async fn handle_ocr_multipart(
             .into_response();
     }
 
-    // Parse multipart body
+    // Parse multipart body using raw bytes (no UTF-8 conversion to avoid corrupting binary data)
     let mut image_data: Option<Vec<u8>> = None;
     let mut model_version: Option<String> = None;
 
-    let body_str = String::from_utf8_lossy(&body);
-    let parts: Vec<&str> = body_str.split(&format!("--{boundary}")).collect();
+    let boundary_bytes = format!("--{boundary}").into_bytes();
+    let body_bytes = &body[..];
+    let crlf = b"\r\n";
+    let double_crlf = b"\r\n\r\n";
 
-    for part in &parts {
-        if part.is_empty() || part.trim() == "--" {
-            continue;
+    // Split body by boundary
+    let mut pos = 0;
+    while pos < body_bytes.len() {
+        // Find next boundary
+        let boundary_start = match find_bytes(body_bytes, &boundary_bytes, pos) {
+            Some(p) => p,
+            None => break,
+        };
+        let part_start = boundary_start + boundary_bytes.len();
+
+        // Skip trailing "--" (end marker) or CRLF
+        if part_start + 2 <= body_bytes.len() && &body_bytes[part_start..part_start + 2] == b"--" {
+            break;
         }
+        let part_start = if part_start + 2 <= body_bytes.len()
+            && &body_bytes[part_start..part_start + 2] == crlf
+        {
+            part_start + 2
+        } else {
+            part_start
+        };
 
-        // Find the Content-Disposition header to get field name
-        if let Some(header_end) = part.find("\r\n\r\n") {
-            let headers_section = &part[..header_end];
+        // Find end of this part (next boundary)
+        let part_end = match find_bytes(body_bytes, &boundary_bytes, part_start) {
+            Some(p) => p - 2, // back up past the CRLF before boundary
+            None => body_bytes.len(),
+        };
+
+        let part = &body_bytes[part_start..part_end.min(body_bytes.len())];
+
+        // Find header/body separator (double CRLF)
+        if let Some(header_end) = find_bytes(part, double_crlf, 0) {
+            let headers_bytes = &part[..header_end];
             let content = &part[header_end + 4..];
 
-            // Trim trailing boundary markers
-            let content = content.trim_end_matches("\r\n");
-            let content = content.trim_end_matches("--");
+            // Parse headers as string (headers are always ASCII)
+            let headers_str = str::from_utf8(headers_bytes).unwrap_or("");
 
-            let field_name = headers_section
+            let field_name = headers_str
                 .lines()
                 .find(|l| l.contains("name=\""))
                 .and_then(|l| {
@@ -388,30 +416,21 @@ async fn handle_ocr_multipart(
 
             match field_name {
                 Some("image") => {
-                    // Find the double newline after Content-Type (if present)
-                    let body_start = if let Some(ct_pos) = headers_section.find("Content-Type:") {
-                        // Content-Type header exists, find double newline after it
-                        if let Some(double_nl) = headers_section[ct_pos..].find("\r\n\r\n") {
-                            header_end + double_nl + 4 - (headers_section.len() - ct_pos)
-                        } else {
-                            header_end + 4
-                        }
-                    } else {
-                        header_end + 4
-                    };
-
-                    let image_bytes = part[body_start..]
-                        .trim_end_matches("\r\n")
-                        .trim_end_matches("--")
-                        .trim_end_matches("\r\n");
-                    image_data = Some(image_bytes.as_bytes().to_vec());
+                    // Content is raw bytes — copy directly, no string conversion
+                    let content = strip_trailing_crlf(content);
+                    image_data = Some(content.to_vec());
                 }
                 Some("model") => {
-                    model_version = Some(content.trim().to_string());
+                    // Model field is text
+                    if let Ok(s) = str::from_utf8(content) {
+                        model_version = Some(s.trim().to_string());
+                    }
                 }
                 _ => {}
             }
         }
+
+        pos = part_end + 2;
     }
 
     let image_data = match image_data {
@@ -449,7 +468,7 @@ async fn handle_ocr_multipart(
     }
 }
 
-/// Handle JSON base64 request.
+/// Handle JSON request (base64 image or image URL).
 async fn handle_ocr_json(
     state: ApiState,
     body: &[u8],
@@ -471,21 +490,53 @@ async fn handle_ocr_json(
         }
     };
 
-    let image_data = match parse_base64_image(&req.image) {
-        Ok(data) => data,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(ErrorResponse {
-                    success: false,
-                    error: ErrorDetail {
-                        code: "INVALID_IMAGE".into(),
-                        message: e,
-                    },
-                }),
-            )
-                .into_response();
+    // Determine image source: base64 or URL (mutually exclusive)
+    let image_data = if let Some(ref url) = req.url {
+        match download_image_from_url(url) {
+            Ok(data) => data,
+            Err(e) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        success: false,
+                        error: ErrorDetail {
+                            code: "INVALID_IMAGE".into(),
+                            message: format!("Failed to download image from URL: {e}"),
+                        },
+                    }),
+                )
+                    .into_response();
+            }
         }
+    } else if let Some(ref b64) = req.image {
+        match parse_base64_image(b64) {
+            Ok(data) => data,
+            Err(e) => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(ErrorResponse {
+                        success: false,
+                        error: ErrorDetail {
+                            code: "INVALID_IMAGE".into(),
+                            message: e,
+                        },
+                    }),
+                )
+                    .into_response();
+            }
+        }
+    } else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                success: false,
+                error: ErrorDetail {
+                    code: "NO_IMAGE".into(),
+                    message: "Either 'image' (base64) or 'url' (image URL) must be provided".into(),
+                },
+            }),
+        )
+            .into_response();
     };
 
     let model = req.model.unwrap_or_else(|| {
@@ -504,6 +555,50 @@ async fn handle_ocr_json(
         Ok(resp) => (StatusCode::OK, Json(resp)).into_response(),
         Err(e) => e.into_response(),
     }
+}
+
+/// Download image binary from a URL using ureq.
+fn download_image_from_url(url: &str) -> Result<Vec<u8>, String> {
+    let resp = ureq::get(url)
+        .set("User-Agent", "LynxOCR/1.1")
+        .timeout(std::time::Duration::from_secs(30))
+        .call()
+        .map_err(|e| format!("HTTP request failed: {e}"))?;
+
+    let content_type = resp.header("Content-Type").unwrap_or("");
+    if content_type.starts_with("image/") || content_type.is_empty() {
+        // Empty content-type is allowed — some servers don't set it for images
+    } else {
+        return Err(format!("URL does not point to an image (Content-Type: {content_type})"));
+    }
+
+    let mut data = Vec::new();
+    resp.into_reader()
+        .read_to_end(&mut data)
+        .map_err(|e| format!("Failed to read response: {e}"))?;
+
+    if data.is_empty() {
+        return Err("Downloaded image is empty".into());
+    }
+
+    Ok(data)
+}
+
+/// Find a byte pattern in a byte slice, returning the start index.
+fn find_bytes(haystack: &[u8], needle: &[u8], start: usize) -> Option<usize> {
+    haystack[start..]
+        .windows(needle.len())
+        .position(|w| w == needle)
+        .map(|p| start + p)
+}
+
+/// Strip trailing CRLF (or single LF) from byte slice.
+fn strip_trailing_crlf(data: &[u8]) -> &[u8] {
+    let mut end = data.len();
+    while end > 0 && (data[end - 1] == b'\n' || data[end - 1] == b'\r') {
+        end -= 1;
+    }
+    &data[..end]
 }
 
 /// GET /api/v1/health

@@ -236,6 +236,14 @@ export function ApiSettingsPage() {
                 </code>
               </div>
               <div>
+                <p className="text-xs font-medium mb-1">{t("api.urlCurl")}</p>
+                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
+                  &nbsp;&nbsp;-H &quot;Content-Type: application/json&quot; \<br/>
+                  &nbsp;&nbsp;-d &apos;{'{'}&quot;url&quot;: &quot;https://example.com/image.png&quot;{'}'}&apos;
+                </code>
+              </div>
+              <div>
                 <p className="text-xs font-medium mb-1">{t("api.specifyModel")}</p>
                 <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
                   curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
