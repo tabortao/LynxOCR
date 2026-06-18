@@ -3,7 +3,7 @@ name = "lynxocr"
 version = "1.1.0"
 description = "LynxOCR - Offline OCR Text Recognition"
 authors = ["tabortao"]
-edition = "2026"
+edition = "2021"
 
 [lib]
 name = "lynxocr_lib"
@@ -37,6 +37,12 @@ thiserror = "2"
 
 # HTTP download
 ureq = { version = "2", features = ["tls"] }
+
+# HTTP server (API)
+axum = { version = "0.7", features = ["multipart"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "limit"] }
+base64 = "0.22"
 
 # OCR (PaddleOCR via ONNX Runtime)
 paddle-ocr-rs = "0.6"

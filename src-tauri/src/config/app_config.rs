@@ -21,6 +21,23 @@ pub struct AppConfig {
     /// Edit `config.json` to change without recompiling.
     #[serde(default = "default_model_download_urls")]
     pub model_download_urls: Vec<String>,
+
+    /// HTTP API server port (default: 9720).
+    #[serde(default = "default_api_port")]
+    pub api_server_port: u16,
+
+    /// Optional API key for authentication.
+    /// When set, all endpoints except /health require Bearer token.
+    #[serde(default)]
+    pub api_key: String,
+
+    /// Auto-start API server on app launch.
+    #[serde(default)]
+    pub api_server_auto_start: bool,
+
+    /// Maximum upload file size in MB (default: 20).
+    #[serde(default = "default_max_file_size_mb")]
+    pub max_file_size_mb: u32,
 }
 
 fn default_ocr_screenshot_shortcut() -> String {
@@ -38,6 +55,14 @@ fn default_model_download_urls() -> Vec<String> {
     ]
 }
 
+fn default_api_port() -> u16 {
+    9720
+}
+
+fn default_max_file_size_mb() -> u32 {
+    20
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         let app_data = app_data_dir();
@@ -48,6 +73,10 @@ impl Default for AppConfig {
             sidebar_collapsed: false,
             ocr_screenshot_shortcut: default_ocr_screenshot_shortcut(),
             model_download_urls: default_model_download_urls(),
+            api_server_port: default_api_port(),
+            api_key: String::new(),
+            api_server_auto_start: false,
+            max_file_size_mb: default_max_file_size_mb(),
         }
     }
 }

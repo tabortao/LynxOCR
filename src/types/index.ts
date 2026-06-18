@@ -1,8 +1,14 @@
 /** 应用配置 */
 export interface AppConfig {
   modelPath: string;
+  activeOcrModel: string;
   sidebarCollapsed: boolean;
   ocrScreenshotShortcut: string;
+  modelDownloadUrls: string[];
+  apiServerPort: number;
+  apiKey: string;
+  apiServerAutoStart: boolean;
+  maxFileSizeMb: number;
 }
 
 /** 模型下载进度 */

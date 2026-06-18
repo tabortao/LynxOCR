@@ -15,6 +15,7 @@ import {
   ScanTextIcon,
   Settings2Icon,
   CpuIcon,
+  NetworkIcon,
   InfoIcon,
   CommandIcon,
   SunIcon,
@@ -49,6 +50,7 @@ export function AppSidebar({
   const settingsNav = [
     { id: "settings" as Page, title: t("settings"), icon: Settings2Icon },
     { id: "model-settings" as Page, title: t("models"), icon: CpuIcon },
+    { id: "api-settings" as Page, title: t("api"), icon: NetworkIcon },
   ]
 
   return (

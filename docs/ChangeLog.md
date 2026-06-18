@@ -9,11 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Configurable OCR model download URLs — three mirrors with auto-fallback in `config.json` (`modelDownloadUrls`). Use `{model}` placeholder for model name.
-- New Rust commands: `write_text_file` and `open_file_with_system` for TXT export
+- Built-in RESTful OCR API service (`axum` HTTP server) with endpoints: `POST /api/v1/ocr` (multipart + JSON base64), `GET /api/v1/health`, `GET /api/v1/info`
+- API settings page with server start/stop, port configuration, optional Bearer token auth, file size limit, and auto-start on launch
+- New Rust commands: `api_start_server`, `api_stop_server`, `api_get_server_status`, `write_text_file`, `open_file_with_system`
+- English i18n translations for all API settings UI
+- New `Switch` UI component
 
 ### Changed
 - Default OCR model switched from PaddleOCR V5 to **PaddleOCR V6**
 - Model download moved to configurable URL templates (was hardcoded gitcode.com URL)
+- Page navigation: replaced `React.lazy` with keep-alive pattern (all pages rendered once, hidden via `display:none`), eliminating remount delays on page switch
 - Download agent: connect/read/write timeouts + 5 redirects follow
 - Updated `rebuild_ocr_zips.rs` example to point to LynxOCR repository
 

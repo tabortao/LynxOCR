@@ -1,3 +1,4 @@
+mod api;
 mod commands;
 mod config;
 mod engine;
@@ -24,6 +25,8 @@ pub struct AppState {
     pub ocr_engine: Arc<Mutex<Option<OcrEngine>>>,
     /// Pending screenshot data for the screenshot selection window.
     pub pending_screenshot: Arc<Mutex<Option<serde_json::Value>>>,
+    /// Handle for the HTTP API server (if running).
+    pub api_server_handle: Arc<Mutex<Option<Arc<api::ServerHandle>>>>,
 }
 
 /// Parse a shortcut string like "Ctrl+Shift+O" into (Modifiers, Code).
@@ -134,6 +137,7 @@ pub fn run() {
             active_ocr_model: Arc::new(Mutex::new(active_ocr_model)),
             ocr_engine: Arc::new(Mutex::new(None)),
             pending_screenshot: Arc::new(Mutex::new(None)),
+            api_server_handle: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             // Model commands
@@ -161,6 +165,10 @@ pub fn run() {
             // Utility commands
             commands::ocr::write_text_file,
             commands::ocr::open_file_with_system,
+            // API server commands
+            commands::api::api_start_server,
+            commands::api::api_stop_server,
+            commands::api::api_get_server_status,
         ])
         .setup(move |app| {
             // System tray
@@ -228,6 +236,49 @@ pub fn run() {
                 })?;
 
                 log::info!("[global-shortcut] registered shortcut: {}", screenshot_shortcut);
+            }
+
+            // Auto-start API server if configured
+            {
+                let state = app.state::<AppState>();
+                let config = state.config.lock().unwrap();
+                let auto_start = config.api_server_auto_start;
+                let port = config.api_server_port;
+                let api_key = config.api_key.clone();
+                let max_file_size_mb = config.max_file_size_mb;
+                let model_path = config.model_path.clone();
+                let app_version = env!("CARGO_PKG_VERSION").to_string();
+                drop(config);
+
+                if auto_start {
+                    let engine_arc = state.ocr_engine.clone();
+                    let active_model = state.active_ocr_model.clone();
+                    let app_handle = app.handle().clone();
+
+                    tauri::async_runtime::spawn(async move {
+                        match api::start_api_server(
+                            port,
+                            engine_arc,
+                            active_model,
+                            model_path,
+                            api_key,
+                            max_file_size_mb,
+                            app_version,
+                        )
+                        .await
+                        {
+                            Ok(handle) => {
+                                let state = app_handle.state::<AppState>();
+                                let mut server_handle = state.api_server_handle.lock().unwrap();
+                                *server_handle = Some(Arc::new(handle));
+                                log::info!("[auto-start] API server started on port {port}");
+                            }
+                            Err(e) => {
+                                log::error!("[auto-start] failed to start API server: {e}");
+                            }
+                        }
+                    });
+                }
             }
 
             Ok(())
