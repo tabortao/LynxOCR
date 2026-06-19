@@ -201,7 +201,7 @@ const dict = {
     "ocr.exportAs": "Export",
 
     // API settings page
-    api: "API Service",
+    "api": "API Service",
     "header.api-settings": "API Service",
     "api.title": "API Service",
     "api.desc": "Enable built-in HTTP API service for other applications to call OCR",

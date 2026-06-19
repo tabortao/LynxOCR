@@ -65,7 +65,10 @@ fn parse_shortcut_string(s: &str) -> (Modifiers, Code) {
         "ENTER" | "RETURN" => Code::Enter,
         "ESCAPE" | "ESC" => Code::Escape,
         "BACKSPACE" => Code::Backspace,
-        _ => Code::KeyO,
+        _ => {
+            log::warn!("[parse_shortcut_string] Unknown shortcut key: {key}, falling back to KeyO");
+            Code::KeyO
+        }
     };
 
     (modifiers, code)
