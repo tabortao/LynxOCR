@@ -1,9 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   UploadIcon,
   ImageIcon,
@@ -17,6 +25,8 @@ import {
   XCircleIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  EyeIcon,
+  AlignLeftIcon,
 } from "lucide-react"
 import { invoke, convertFileSrc } from "@tauri-apps/api/core"
 import { open } from "@tauri-apps/plugin-dialog"
@@ -60,6 +70,7 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   const [expandedIdx, setExpandedIdx] = useState<number>(-1)
   const [batchProcessing, setBatchProcessing] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
+  const [viewModes, setViewModes] = useState<Record<number, "plain" | "markdown">>({})
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const modelInstalledRef = useRef(false)
   const startBatchOCRForPathsRef = useRef<(paths: string[]) => Promise<void>>(undefined as unknown as (paths: string[]) => Promise<void>)
@@ -464,6 +475,53 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
     }
   }
 
+  const handleExportMd = async () => {
+    const completedItems = items.filter((item) => item.state === "completed" && item.result)
+    if (completedItems.length === 0) return
+
+    const now = new Date().toISOString().replace("T", " ").slice(0, 19)
+    const modelDisplay = MODEL_DISPLAY[activeModel] ?? activeModel
+
+    // Build markdown content
+    const parts: string[] = []
+    parts.push("# OCR 识别结果")
+    parts.push("")
+    parts.push(`> 识别时间: ${now}`)
+    parts.push(`> 识别模型: ${modelDisplay}`)
+    parts.push("")
+
+    for (const item of completedItems) {
+      const pageMatch = item.path.match(/#page=(\d+)$/i)
+      if (pageMatch) {
+        parts.push(`## ${item.fileName} (第 ${pageMatch[1]} 页)`)
+      } else {
+        parts.push(`## ${item.fileName}`)
+      }
+      parts.push("")
+      for (const block of item.result!.textBlocks) {
+        parts.push(block.text)
+        parts.push("")
+      }
+      parts.push("---")
+      parts.push("")
+    }
+
+    const mdContent = parts.join("\n")
+    if (!mdContent) return
+
+    const firstPath = completedItems[0].path.replace(/#page=\d+$/i, "")
+    const baseName = firstPath.replace(/\.[^.]+$/, "")
+    const exportPath = `${baseName}_ocr.md`
+
+    try {
+      await invoke("write_text_file", { path: exportPath, content: mdContent })
+      await invoke("open_file_with_system", { path: exportPath })
+      showFlash(t("ocr.exportMd"))
+    } catch (err) {
+      console.error("Export MD failed:", err)
+    }
+  }
+
   const handleScreenshotOCR = async () => {
     if (!modelInstalled) {
       return
@@ -523,10 +581,25 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
           </Button>
         )}
         {hasCompleted && (
-          <Button onClick={handleExportAllTxt} variant="outline" size="sm">
-            <FileTextIcon className="size-4 mr-1" />
-            {t("ocr.exportTxt")}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <FileTextIcon className="size-4 mr-1" />
+                {t("ocr.exportAs")}
+                <ChevronDownIcon className="size-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportAllTxt}>
+                <FileTextIcon className="size-4 mr-2" />
+                {t("ocr.exportTxt")} (.txt)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportMd}>
+                <FileTextIcon className="size-4 mr-2" />
+                {t("ocr.exportMd")} (.md)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
         <Button onClick={handleClear} variant="ghost" size="sm" disabled={!hasItems}>
           <Trash2Icon className="size-4 mr-1" />
@@ -714,23 +787,61 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
                               {t("ocr.noTextFound")}
                             </p>
                           ) : (
-                            <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
-                              {item.result.textBlocks.map((block, bIdx) => (
-                                <div
-                                  key={bIdx}
-                                  className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                            <>
+                              {/* View mode toggle */}
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant={viewModes[idx] === "markdown" ? "ghost" : "secondary"}
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => setViewModes(prev => ({ ...prev, [idx]: "plain" }))}
                                 >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <p className="text-sm leading-relaxed break-all">
-                                      {block.text}
-                                    </p>
-                                    <Badge variant="secondary" className="shrink-0 text-xs">
-                                      {(block.confidence * 100).toFixed(1)}%
-                                    </Badge>
+                                  <AlignLeftIcon className="size-3.5 mr-1" />
+                                  {t("ocr.viewPlain")}
+                                </Button>
+                                <Button
+                                  variant={viewModes[idx] === "markdown" ? "secondary" : "ghost"}
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => setViewModes(prev => ({ ...prev, [idx]: "markdown" }))}
+                                >
+                                  <EyeIcon className="size-3.5 mr-1" />
+                                  {t("ocr.viewMarkdown")}
+                                </Button>
+                              </div>
+
+                              {/* Plain text view */}
+                              {viewModes[idx] !== "markdown" && (
+                                <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
+                                  {item.result.textBlocks.map((block, bIdx) => (
+                                    <div
+                                      key={bIdx}
+                                      className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                                    >
+                                      <div className="flex items-start justify-between gap-2">
+                                        <p className="text-sm leading-relaxed break-all">
+                                          {block.text}
+                                        </p>
+                                        <Badge variant="secondary" className="shrink-0 text-xs">
+                                          {(block.confidence * 100).toFixed(1)}%
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Markdown preview */}
+                              {viewModes[idx] === "markdown" && (
+                                <div className="max-h-[250px] overflow-y-auto p-3 rounded-lg border bg-muted/30">
+                                  <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:leading-relaxed [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_code]:text-xs [&_pre]:text-xs [&_table]:text-xs [&_blockquote]:text-xs">
+                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                      {item.result.textBlocks.map((b) => b.text).join("\n\n")}
+                                    </ReactMarkdown>
                                   </div>
                                 </div>
-                              ))}
-                            </div>
+                              )}
+                            </>
                           )}
                         </div>
                       )}

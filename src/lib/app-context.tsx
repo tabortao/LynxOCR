@@ -63,7 +63,7 @@ const dict = {
     "ocr.noTextFound": "未检测到文字",
     "ocr.modelVersion": "模型版本",
     "ocr.copyText": "复制文本",
-    "ocr.exportTxt": "导出 TXT",
+    "ocr.exportTxt": "TXT",
     "ocr.confidence": "置信度",
     "ocr.clear": "清除",
     "ocr.textBlocks": "{count} 个文本块",
@@ -82,6 +82,10 @@ const dict = {
     "ocr.batchExportDone": "已导出 {count} 个文件",
     "ocr.pending": "等待识别",
     "ocr.pdfPage": "第 {page} 页",
+    "ocr.viewPlain": "纯文本",
+    "ocr.viewMarkdown": "Markdown 预览",
+    "ocr.exportMd": "Markdown",
+    "ocr.exportAs": "导出",
 
     // API settings page
     "api.title": "API 服务",
@@ -172,7 +176,7 @@ const dict = {
     "ocr.noTextFound": "No text detected",
     "ocr.modelVersion": "Model Version",
     "ocr.copyText": "Copy Text",
-    "ocr.exportTxt": "Export TXT",
+    "ocr.exportTxt": "TXT",
     "ocr.confidence": "Confidence",
     "ocr.clear": "Clear",
     "ocr.textBlocks": "{count} text block(s)",
@@ -191,6 +195,10 @@ const dict = {
     "ocr.batchExportDone": "Exported {count} files",
     "ocr.pending": "Pending",
     "ocr.pdfPage": "Page {page}",
+    "ocr.viewPlain": "Plain Text",
+    "ocr.viewMarkdown": "Markdown Preview",
+    "ocr.exportMd": "MD",
+    "ocr.exportAs": "Export",
 
     // API settings page
     api: "API Service",
