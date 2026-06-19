@@ -7,3 +7,4 @@
 - [ ] 提供API接口，支持其他应用调用OCR等功能。https://tauri.app/plugin/http-client/
 - [ ] 提供CLI工具，支持批量调用OCR等功能。https://tauri.app/plugin/cli/
 - [ ] 提供PDF文档OCR功能。依赖https://github.com/ajrcarey/pdfium-render 和 https://github.com/bblanchon/pdfium-binaries
+- [ ] 学习 https://github.com/xyTom/snippai
