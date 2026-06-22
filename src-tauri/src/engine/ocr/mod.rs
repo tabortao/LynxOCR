@@ -274,6 +274,7 @@ impl OcrEngine {
         Ok(OcrResult {
             text_blocks,
             total_time_ms: start.elapsed().as_millis() as u64,
+            format: None,
         })
     }
 
@@ -325,6 +326,7 @@ impl OcrEngine {
         Ok(OcrResult {
             text_blocks,
             total_time_ms: start.elapsed().as_millis() as u64,
+            format: None,
         })
     }
 }

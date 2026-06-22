@@ -6,6 +6,10 @@ use serde::{Deserialize, Serialize};
 pub struct OcrResult {
     pub text_blocks: Vec<TextBlockInfo>,
     pub total_time_ms: u64,
+    /// Output format for MinerU results (md, html, latex, docx, json).
+    /// None for PaddleOCR results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
 }
 
 /// Single text block detected and recognized by OCR.

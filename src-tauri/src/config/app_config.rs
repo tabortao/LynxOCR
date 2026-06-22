@@ -38,6 +38,21 @@ pub struct AppConfig {
     /// Maximum upload file size in MB (default: 20).
     #[serde(default = "default_max_file_size_mb")]
     pub max_file_size_mb: u32,
+
+    /// MinerU API token for extract mode (optional).
+    /// When empty, flash-extract mode is used (Markdown only).
+    #[serde(default)]
+    pub mineru_api_token: String,
+
+    /// MinerU API base URL (optional, for private deployments).
+    /// Defaults to "https://mineru.net" when None.
+    #[serde(default)]
+    pub mineru_api_base_url: Option<String>,
+
+    /// Default output format for MinerU extract mode.
+    /// One of: "md", "html", "latex", "docx", "json".
+    #[serde(default = "default_mineru_output_format")]
+    pub mineru_output_format: String,
 }
 
 fn default_ocr_screenshot_shortcut() -> String {
@@ -63,6 +78,10 @@ fn default_max_file_size_mb() -> u32 {
     20
 }
 
+fn default_mineru_output_format() -> String {
+    "md".to_string()
+}
+
 impl Default for AppConfig {
     fn default() -> Self {
         let app_data = app_data_dir();
@@ -77,6 +96,9 @@ impl Default for AppConfig {
             api_key: String::new(),
             api_server_auto_start: false,
             max_file_size_mb: default_max_file_size_mb(),
+            mineru_api_token: String::new(),
+            mineru_api_base_url: None,
+            mineru_output_format: default_mineru_output_format(),
         }
     }
 }

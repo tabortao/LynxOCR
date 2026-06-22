@@ -5,13 +5,16 @@ use std::sync::Arc;
 /// Start the HTTP API server.
 #[tauri::command]
 pub async fn api_start_server(state: tauri::State<'_, AppState>) -> Result<ServerStatus, String> {
-    let (port, api_key, max_file_size_mb, model_path) = {
+    let (port, api_key, max_file_size_mb, model_path, mineru_token, mineru_base_url, mineru_output_format) = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
         (
             config.api_server_port,
             config.api_key.clone(),
             config.max_file_size_mb,
             config.model_path.clone(),
+            config.mineru_api_token.clone(),
+            config.mineru_api_base_url.clone(),
+            config.mineru_output_format.clone(),
         )
     };
 
@@ -27,6 +30,9 @@ pub async fn api_start_server(state: tauri::State<'_, AppState>) -> Result<Serve
         api_key,
         max_file_size_mb,
         app_version,
+        mineru_token,
+        mineru_base_url,
+        mineru_output_format,
     )
     .await
     .map_err(|e| format!("Failed to start API server: {e}"))?;

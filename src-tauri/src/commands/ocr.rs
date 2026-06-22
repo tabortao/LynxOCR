@@ -1,3 +1,4 @@
+use crate::engine::mineru::MineruClient;
 use crate::engine::model_manager::is_ppocr_installed_at;
 use crate::engine::ocr::{types::OcrResult, OcrEngine};
 use crate::AppState;
@@ -142,6 +143,29 @@ pub async fn pdf_render_page(
     .map_err(|e| format!("PDF render task failed: {e}"))?
 }
 
+/// Detect image extension from magic bytes.
+fn detect_image_ext(data: &[u8]) -> &'static str {
+    if data.len() < 4 {
+        return "bin";
+    }
+    if &data[0..4] == b"\x89PNG" {
+        return "png";
+    }
+    if &data[0..2] == b"\xff\xd8" {
+        return "jpg";
+    }
+    if data.len() >= 4 && &data[0..4] == b"RIFF" && data.len() >= 12 && &data[8..12] == b"WEBP" {
+        return "webp";
+    }
+    if &data[0..2] == b"BM" {
+        return "bmp";
+    }
+    if data.len() >= 4 && &data[0..4] == b"%PDF" {
+        return "pdf";
+    }
+    "bin"
+}
+
 /// Run OCR on a PDF file by rendering each page and recognizing text.
 #[tauri::command]
 pub async fn ocr_recognize_pdf(
@@ -151,6 +175,16 @@ pub async fn ocr_recognize_pdf(
     dpi: Option<f32>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<serde_json::Value>, String> {
+    // Route MinerU requests to MinerU client (handles PDF natively)
+    if model_version == "mineru" {
+        let result = ocr_recognize_mineru_impl(&pdf_path, &state).await?;
+        return Ok(vec![serde_json::json!({
+            "pageIndex": 0,
+            "imagePath": "",
+            "ocrResult": result,
+        })]);
+    }
+
     let dpi = dpi.unwrap_or(200.0);
     let model_path = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
@@ -236,6 +270,11 @@ pub async fn ocr_recognize(
     model_version: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<OcrResult, String> {
+    // Route MinerU requests to MinerU client
+    if model_version == "mineru" {
+        return ocr_recognize_mineru_impl(&image_path, &state).await;
+    }
+
     let model_path = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
         config.model_path.clone()
@@ -268,6 +307,21 @@ pub async fn ocr_recognize_bytes(
     model_version: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<OcrResult, String> {
+    // Route MinerU requests to MinerU client
+    if model_version == "mineru" {
+        let ext = detect_image_ext(&image_data);
+        let temp_path = std::env::temp_dir()
+            .join(format!("lynxocr_mineru_bytes.{}", ext));
+        std::fs::write(&temp_path, &image_data)
+            .map_err(|e| format!("Failed to write temp file: {e}"))?;
+        let result = ocr_recognize_mineru_impl(
+            &temp_path.to_string_lossy(),
+            &state,
+        ).await;
+        let _ = std::fs::remove_file(&temp_path);
+        return result;
+    }
+
     let model_path = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
         config.model_path.clone()
@@ -312,6 +366,29 @@ pub async fn ocr_screenshot_region(
     model_version: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
+    // Route MinerU requests to MinerU client
+    if model_version == "mineru" {
+        // Crop the region first, then send to MinerU
+        let cropped_path = tokio::task::spawn_blocking(move || {
+            let img = image::open(&image_path)
+                .map_err(|e| format!("Failed to open screenshot: {e}"))?;
+            let cropped = img.crop_imm(x, y, width, height);
+            let cropped_path = std::env::temp_dir().join("lynxocr_screenshot_crop.png");
+            cropped
+                .save(&cropped_path)
+                .map_err(|e| format!("Failed to save cropped screenshot: {e}"))?;
+            Ok::<_, String>(cropped_path.to_string_lossy().to_string())
+        })
+        .await
+        .map_err(|e| format!("Screenshot crop failed: {e}"))??;
+
+        let result = ocr_recognize_mineru_impl(&cropped_path, &state).await?;
+        return Ok(serde_json::json!({
+            "ocrResult": result,
+            "croppedImagePath": cropped_path,
+        }));
+    }
+
     let model_path = {
         let config = state.config.lock().map_err(|e| e.to_string())?;
         config.model_path.clone()
@@ -390,7 +467,7 @@ pub async fn ocr_set_active_model(
     model_name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
-    let valid_models = ["ppocr-v4", "ppocr-v5", "ppocr-v6"];
+    let valid_models = ["ppocr-v4", "ppocr-v5", "ppocr-v6", "mineru"];
     if !valid_models.contains(&model_name.as_str()) {
         return Err(format!("Unknown OCR model: {model_name}"));
     }
@@ -424,6 +501,57 @@ pub async fn ocr_release(state: tauri::State<'_, AppState>) -> Result<(), String
     *engine = None;
     log::info!("[ocr_release] engine released — ONNX Runtime memory freed");
     Ok(())
+}
+
+/// Run OCR via MinerU cloud API.
+/// Uses flash-extract (no token) or extract (with token) mode.
+#[tauri::command]
+pub async fn ocr_recognize_mineru(
+    image_path: String,
+    _output_format: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<OcrResult, String> {
+    ocr_recognize_mineru_impl(&image_path, &state).await
+}
+
+/// Shared implementation for MinerU OCR (used by both ocr_recognize and ocr_recognize_mineru).
+async fn ocr_recognize_mineru_impl(
+    image_path: &str,
+    state: &tauri::State<'_, AppState>,
+) -> Result<OcrResult, String> {
+    let (token, base_url, default_format) = {
+        let config = state.config.lock().map_err(|e| e.to_string())?;
+        (
+            config.mineru_api_token.clone(),
+            config.mineru_api_base_url.clone(),
+            config.mineru_output_format.clone(),
+        )
+    };
+
+    let image_path = image_path.to_string();
+
+    tokio::task::spawn_blocking(move || {
+        let client = MineruClient::new(token, base_url);
+
+        let result = if client.has_token() {
+            client.extract(Path::new(&image_path), &default_format)
+        } else {
+            client.flash_extract(Path::new(&image_path))
+        }
+        .map_err(|e| e.to_string())?;
+
+        Ok(OcrResult {
+            text_blocks: vec![crate::engine::ocr::types::TextBlockInfo {
+                text: result.content,
+                confidence: 1.0,
+                box_points: vec![],
+            }],
+            total_time_ms: result.total_time_ms,
+            format: Some(result.format),
+        })
+    })
+    .await
+    .map_err(|e| format!("MinerU OCR task failed: {e}"))?
 }
 
 /// Start screenshot selection by creating a transparent fullscreen window.
@@ -687,6 +815,16 @@ fn capture_all_monitors_inner() -> Result<serde_json::Value, String> {
 #[tauri::command]
 pub fn write_text_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write file: {e}"))
+}
+
+/// Write base64-encoded binary content to a file.
+#[tauri::command]
+pub fn write_binary_file(path: String, base64_content: String) -> Result<(), String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&base64_content)
+        .map_err(|e| format!("Failed to decode base64: {e}"))?;
+    std::fs::write(&path, &bytes).map_err(|e| format!("Failed to write file: {e}"))
 }
 
 /// Open a file with the system default application.

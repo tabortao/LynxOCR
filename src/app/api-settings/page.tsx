@@ -251,6 +251,22 @@ export function ApiSettingsPage() {
                   &nbsp;&nbsp;-F &quot;model=ppocr-v5&quot;
                 </code>
               </div>
+              <div>
+                <p className="text-xs font-medium mb-1">{t("api.mineruCurl")}</p>
+                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
+                  &nbsp;&nbsp;-F &quot;image=@/path/to/file.png&quot; \<br/>
+                  &nbsp;&nbsp;-F &quot;model=mineru&quot;
+                </code>
+              </div>
+              <div>
+                <p className="text-xs font-medium mb-1">{t("api.mineruExtractCurl")}</p>
+                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
+                  &nbsp;&nbsp;-H &quot;Content-Type: application/json&quot; \<br/>
+                  &nbsp;&nbsp;-d &apos;{'{'}&quot;image&quot;: &quot;base64...&quot;, &quot;model&quot;: &quot;mineru&quot;, &quot;format&quot;: &quot;html&quot;, &quot;mineru_mode&quot;: &quot;extract&quot;{'}'}&apos;
+                </code>
+              </div>
             </div>
           </CardContent>
         </Card>

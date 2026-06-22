@@ -27,21 +27,31 @@ import {
   ChevronRightIcon,
   EyeIcon,
   AlignLeftIcon,
+  CloudIcon,
 } from "lucide-react"
 import { invoke, convertFileSrc } from "@tauri-apps/api/core"
 import { open } from "@tauri-apps/plugin-dialog"
 import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import { useAppContext } from "@/lib/app-context"
-import type { OcrResult, ModelInfo } from "@/types"
+import type { OcrResult, ModelInfo, AppConfig } from "@/types"
 
 type OCRState = "idle" | "loading" | "completed" | "error"
 
-const MODEL_NAMES = ["ppocr-v4", "ppocr-v5", "ppocr-v6"] as const
+const MODEL_NAMES = ["ppocr-v4", "ppocr-v5", "ppocr-v6", "mineru"] as const
 const MODEL_DISPLAY: Record<string, string> = {
   "ppocr-v4": "PaddleOCR V4",
   "ppocr-v5": "PaddleOCR V5",
   "ppocr-v6": "PaddleOCR V6",
+  mineru: "MinerU Cloud",
 }
+
+const MINERU_FORMATS = [
+  { value: "md", label: "Markdown (.md)" },
+  { value: "html", label: "HTML (.html)" },
+  { value: "latex", label: "LaTeX (.tex)" },
+  { value: "docx", label: "DOCX (.docx)" },
+  { value: "json", label: "JSON (.json)" },
+]
 
 const IMAGE_EXTS = ["png", "jpg", "jpeg", "bmp", "webp", "tiff", "tif"]
 const PDF_EXTS = ["pdf"]
@@ -66,6 +76,8 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const [activeModel, setActiveModel] = useState("ppocr-v6")
   const [installedModels, setInstalledModels] = useState<Set<string>>(new Set())
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  const [mineruOutputFormat, setMineruOutputFormat] = useState("md")
   const [flashMessage, setFlashMessage] = useState("")
   const [expandedIdx, setExpandedIdx] = useState<number>(-1)
   const [batchProcessing, setBatchProcessing] = useState(false)
@@ -75,7 +87,9 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   const modelInstalledRef = useRef(false)
   const startBatchOCRForPathsRef = useRef<(paths: string[]) => Promise<void>>(undefined as unknown as (paths: string[]) => Promise<void>)
 
-  const modelInstalled = installedModels.has(activeModel)
+  const isMineru = activeModel === "mineru"
+  const hasMineruToken = (config?.mineruApiToken?.length ?? 0) > 0
+  const modelInstalled = isMineru || installedModels.has(activeModel)
 
   // Keep ref in sync
   useEffect(() => {
@@ -100,6 +114,10 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
       try {
         const active = await invoke<string>("ocr_get_active_model")
         setActiveModel(active)
+
+        const cfg = await invoke<AppConfig>("get_app_config")
+        setConfig(cfg)
+        setMineruOutputFormat(cfg.mineruOutputFormat || "md")
 
         const models = await invoke<ModelInfo[]>("list_models")
         const installed = new Set<string>()
@@ -137,6 +155,7 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
             ? {
                 textBlocks: ocrResult.textBlocks,
                 totalTimeMs: ocrResult.totalTimeMs,
+                format: ocrResult.format,
               }
             : {
                 textBlocks: [{ text, confidence: 1.0, boxPoints: [] }],
@@ -396,6 +415,10 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
     try {
       await invoke("ocr_set_active_model", { modelName: model })
 
+      const cfg = await invoke<AppConfig>("get_app_config")
+      setConfig(cfg)
+      setMineruOutputFormat(cfg.mineruOutputFormat || "md")
+
       const models = await invoke<ModelInfo[]>("list_models")
       const installed = new Set<string>()
       for (const m of models) {
@@ -522,6 +545,42 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
     }
   }
 
+  const handleExportMineruFormat = async (format: string) => {
+    const completedItems = items.filter((item) => item.state === "completed" && item.result)
+    if (completedItems.length === 0) return
+
+    const content = completedItems
+      .map((item) => item.result!.textBlocks.map((b) => b.text).join("\n"))
+      .join("\n\n")
+
+    if (!content) return
+
+    const firstPath = completedItems[0].path.replace(/#page=\d+$/i, "")
+    const baseName = firstPath.replace(/\.[^.]+$/, "")
+    const extMap: Record<string, string> = {
+      html: "html",
+      latex: "tex",
+      md: "md",
+      json: "json",
+    }
+    const ext = extMap[format] || format
+    const exportPath = `${baseName}_ocr.${ext}`
+
+    try {
+      if (format === "docx") {
+        // DOCX is base64 encoded in the textBlocks
+        const base64Data = completedItems[0].result!.textBlocks[0]?.text || ""
+        await invoke("write_binary_file", { path: exportPath, base64Content: base64Data })
+      } else {
+        await invoke("write_text_file", { path: exportPath, content })
+        await invoke("open_file_with_system", { path: exportPath })
+      }
+      showFlash(format.toUpperCase())
+    } catch (err) {
+      console.error(`Export ${format} failed:`, err)
+    }
+  }
+
   const handleScreenshotOCR = async () => {
     if (!modelInstalled) {
       return
@@ -545,10 +604,33 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
           {MODEL_NAMES.map((key) => (
             <option key={key} value={key}>
               {MODEL_DISPLAY[key]}
-              {installedModels.has(key) ? "" : " (not installed)"}
+              {installedModels.has(key) || key === "mineru" ? "" : " (not installed)"}
             </option>
           ))}
         </select>
+        {isMineru && (
+          <select
+            value={mineruOutputFormat}
+            onChange={(e) => setMineruOutputFormat(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+            title={t("ocr.mineruFormat")}
+          >
+            {MINERU_FORMATS.map((f) => (
+              <option
+                key={f.value}
+                value={f.value}
+                disabled={!hasMineruToken && f.value !== "md"}
+              >
+                {t("ocr.mineruFormat")}: {f.label}
+              </option>
+            ))}
+          </select>
+        )}
+        {isMineru && !hasMineruToken && (
+          <Badge variant="secondary" className="h-9 px-3">
+            {t("ocr.mineruFlashMode")}
+          </Badge>
+        )}
         <Button
           onClick={handleScreenshotOCR}
           variant="default"
@@ -598,6 +680,26 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
                 <FileTextIcon className="size-4 mr-2" />
                 {t("ocr.exportMd")} (.md)
               </DropdownMenuItem>
+              {isMineru && (
+                <>
+                  <DropdownMenuItem onClick={() => handleExportMineruFormat("html")}>
+                    <FileTextIcon className="size-4 mr-2" />
+                    {t("ocr.exportHtml")} (.html)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportMineruFormat("latex")}>
+                    <FileTextIcon className="size-4 mr-2" />
+                    {t("ocr.exportLatex")} (.tex)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportMineruFormat("docx")}>
+                    <FileTextIcon className="size-4 mr-2" />
+                    {t("ocr.exportDocx")} (.docx)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportMineruFormat("json")}>
+                    <FileTextIcon className="size-4 mr-2" />
+                    {t("ocr.exportJson")} (.json)
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
@@ -613,11 +715,21 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
       </div>
 
       {/* Model not installed warning */}
-      {!modelInstalled && (
+      {!modelInstalled && !isMineru && (
         <div className="p-3 border border-amber-200 rounded-lg bg-amber-50 dark:bg-amber-950 dark:border-amber-800 flex items-start gap-2">
           <AlertTriangleIcon className="size-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
           <p className="text-sm text-amber-700 dark:text-amber-300">
             {t("ocr.modelNotInstalled", { model: MODEL_DISPLAY[activeModel] ?? activeModel })}
+          </p>
+        </div>
+      )}
+
+      {/* MinerU no-token notice */}
+      {isMineru && !hasMineruToken && (
+        <div className="p-3 border border-blue-200 rounded-lg bg-blue-50 dark:bg-blue-950 dark:border-blue-800 flex items-start gap-2">
+          <CloudIcon className="size-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            {t("ocr.mineruNoToken")}
           </p>
         </div>
       )}
@@ -788,58 +900,111 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
                             </p>
                           ) : (
                             <>
-                              {/* View mode toggle */}
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant={viewModes[idx] === "markdown" ? "ghost" : "secondary"}
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => setViewModes(prev => ({ ...prev, [idx]: "plain" }))}
-                                >
-                                  <AlignLeftIcon className="size-3.5 mr-1" />
-                                  {t("ocr.viewPlain")}
-                                </Button>
-                                <Button
-                                  variant={viewModes[idx] === "markdown" ? "secondary" : "ghost"}
-                                  size="sm"
-                                  className="h-7 text-xs"
-                                  onClick={() => setViewModes(prev => ({ ...prev, [idx]: "markdown" }))}
-                                >
-                                  <EyeIcon className="size-3.5 mr-1" />
-                                  {t("ocr.viewMarkdown")}
-                                </Button>
-                              </div>
-
-                              {/* Plain text view */}
-                              {viewModes[idx] !== "markdown" && (
-                                <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
-                                  {item.result.textBlocks.map((block, bIdx) => (
-                                    <div
-                                      key={bIdx}
-                                      className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
-                                    >
-                                      <div className="flex items-start justify-between gap-2">
-                                        <p className="text-sm leading-relaxed break-all">
-                                          {block.text}
-                                        </p>
-                                        <Badge variant="secondary" className="shrink-0 text-xs">
-                                          {(block.confidence * 100).toFixed(1)}%
-                                        </Badge>
-                                      </div>
-                                    </div>
-                                  ))}
+                              {/* MinerU HTML preview */}
+                              {item.result.format === "html" && (
+                                <div className="max-h-[300px] overflow-y-auto rounded-lg border bg-white dark:bg-gray-900">
+                                  <iframe
+                                    srcDoc={item.result.textBlocks[0]?.text || ""}
+                                    className="w-full h-[300px] border-0"
+                                    title="HTML Preview"
+                                    sandbox="allow-scripts"
+                                  />
                                 </div>
                               )}
 
-                              {/* Markdown preview */}
-                              {viewModes[idx] === "markdown" && (
+                              {/* MinerU LaTeX view */}
+                              {item.result.format === "latex" && (
                                 <div className="max-h-[250px] overflow-y-auto p-3 rounded-lg border bg-muted/30">
-                                  <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:leading-relaxed [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_code]:text-xs [&_pre]:text-xs [&_table]:text-xs [&_blockquote]:text-xs">
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                      {item.result.textBlocks.map((b) => b.text).join("\n\n")}
-                                    </ReactMarkdown>
-                                  </div>
+                                  <pre className="text-xs font-mono whitespace-pre-wrap break-all">
+                                    {item.result.textBlocks[0]?.text}
+                                  </pre>
                                 </div>
+                              )}
+
+                              {/* MinerU DOCX notice */}
+                              {item.result.format === "docx" && (
+                                <div className="p-3 rounded-lg border bg-muted/30 text-center">
+                                  <p className="text-sm text-muted-foreground">
+                                    {t("ocr.exportDocx")} — {t("ocr.mineruFormat")}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    DOCX is a binary format. Save to file to view.
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* MinerU JSON view */}
+                              {item.result.format === "json" && (
+                                <div className="max-h-[250px] overflow-y-auto p-3 rounded-lg border bg-muted/30">
+                                  <pre className="text-xs font-mono whitespace-pre-wrap break-all">
+                                    {(() => {
+                                      try {
+                                        return JSON.stringify(JSON.parse(item.result.textBlocks[0]?.text || ""), null, 2)
+                                      } catch {
+                                        return item.result.textBlocks[0]?.text
+                                      }
+                                    })()}
+                                  </pre>
+                                </div>
+                              )}
+
+                              {/* Default: plain text/markdown view (PaddleOCR or MinerU md) */}
+                              {(!item.result.format || item.result.format === "md") && (
+                                <>
+                                  {/* View mode toggle */}
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant={viewModes[idx] === "markdown" ? "ghost" : "secondary"}
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={() => setViewModes(prev => ({ ...prev, [idx]: "plain" }))}
+                                    >
+                                      <AlignLeftIcon className="size-3.5 mr-1" />
+                                      {t("ocr.viewPlain")}
+                                    </Button>
+                                    <Button
+                                      variant={viewModes[idx] === "markdown" ? "secondary" : "ghost"}
+                                      size="sm"
+                                      className="h-7 text-xs"
+                                      onClick={() => setViewModes(prev => ({ ...prev, [idx]: "markdown" }))}
+                                    >
+                                      <EyeIcon className="size-3.5 mr-1" />
+                                      {t("ocr.viewMarkdown")}
+                                    </Button>
+                                  </div>
+
+                                  {/* Plain text view */}
+                                  {viewModes[idx] !== "markdown" && (
+                                    <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
+                                      {item.result.textBlocks.map((block, bIdx) => (
+                                        <div
+                                          key={bIdx}
+                                          className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+                                        >
+                                          <div className="flex items-start justify-between gap-2">
+                                            <p className="text-sm leading-relaxed break-all">
+                                              {block.text}
+                                            </p>
+                                            <Badge variant="secondary" className="shrink-0 text-xs">
+                                              {(block.confidence * 100).toFixed(1)}%
+                                            </Badge>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+
+                                  {/* Markdown preview */}
+                                  {viewModes[idx] === "markdown" && (
+                                    <div className="max-h-[250px] overflow-y-auto p-3 rounded-lg border bg-muted/30">
+                                      <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:leading-relaxed [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_code]:text-xs [&_pre]:text-xs [&_table]:text-xs [&_blockquote]:text-xs">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                          {item.result.textBlocks.map((b) => b.text).join("\n\n")}
+                                        </ReactMarkdown>
+                                      </div>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </>
                           )}

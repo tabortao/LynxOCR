@@ -8,6 +8,7 @@ mod errors;
 mod tests;
 
 use config::app_config::AppConfig;
+use engine::mineru::MineruClient;
 use engine::ocr::OcrEngine;
 use std::sync::{Arc, Mutex};
 use tauri::webview::PageLoadEvent;
@@ -27,6 +28,8 @@ pub struct AppState {
     pub pending_screenshot: Arc<Mutex<Option<serde_json::Value>>>,
     /// Handle for the HTTP API server (if running).
     pub api_server_handle: Arc<Mutex<Option<Arc<api::ServerHandle>>>>,
+    /// MinerU API client (lazily created).
+    pub mineru_client: Arc<Mutex<Option<MineruClient>>>,
 }
 
 /// Parse a shortcut string like "Ctrl+Shift+O" into (Modifiers, Code).
@@ -141,6 +144,7 @@ pub fn run() {
             ocr_engine: Arc::new(Mutex::new(None)),
             pending_screenshot: Arc::new(Mutex::new(None)),
             api_server_handle: Arc::new(Mutex::new(None)),
+            mineru_client: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
             // Model commands
@@ -162,11 +166,13 @@ pub fn run() {
             commands::ocr::ocr_get_active_model,
             commands::ocr::ocr_set_active_model,
             commands::ocr::ocr_release,
+            commands::ocr::ocr_recognize_mineru,
             commands::ocr::pdf_get_page_count,
             commands::ocr::pdf_render_page,
             commands::ocr::ocr_recognize_pdf,
             // Utility commands
             commands::ocr::write_text_file,
+            commands::ocr::write_binary_file,
             commands::ocr::open_file_with_system,
             // API server commands
             commands::api::api_start_server,
@@ -250,6 +256,9 @@ pub fn run() {
                 let api_key = config.api_key.clone();
                 let max_file_size_mb = config.max_file_size_mb;
                 let model_path = config.model_path.clone();
+                let mineru_token = config.mineru_api_token.clone();
+                let mineru_base_url = config.mineru_api_base_url.clone();
+                let mineru_output_format = config.mineru_output_format.clone();
                 let app_version = env!("CARGO_PKG_VERSION").to_string();
                 drop(config);
 
@@ -267,6 +276,9 @@ pub fn run() {
                             api_key,
                             max_file_size_mb,
                             app_version,
+                            mineru_token,
+                            mineru_base_url,
+                            mineru_output_format,
                         )
                         .await
                         {

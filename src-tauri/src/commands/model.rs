@@ -41,6 +41,9 @@ pub async fn download_specific_model(
                     })
                     .map_err(|e| e.to_string())?;
             }
+            "mineru" => {
+                return Ok("MinerU is cloud-based, no download needed".into());
+            }
             _ => return Err(format!("Unknown model: {model_name}")),
         }
 

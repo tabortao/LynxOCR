@@ -1,4 +1,5 @@
 use crate::api::types::*;
+use crate::engine::mineru::MineruClient;
 use crate::engine::model_manager::is_ppocr_installed_at;
 use crate::engine::ocr::OcrEngine;
 use axum::{
@@ -25,6 +26,10 @@ pub struct ApiState {
     pub api_key: String,
     pub max_file_size_mb: u32,
     pub app_version: String,
+    /// MinerU config
+    pub mineru_token: String,
+    pub mineru_base_url: Option<String>,
+    pub mineru_output_format: String,
 }
 
 /// Handle for controlling the API server lifecycle.
@@ -52,6 +57,9 @@ pub async fn start_api_server(
     api_key: String,
     max_file_size_mb: u32,
     app_version: String,
+    mineru_token: String,
+    mineru_base_url: Option<String>,
+    mineru_output_format: String,
 ) -> Result<ServerHandle, String> {
     let state = ApiState {
         engine,
@@ -60,6 +68,9 @@ pub async fn start_api_server(
         api_key,
         max_file_size_mb,
         app_version,
+        mineru_token,
+        mineru_base_url,
+        mineru_output_format,
     };
 
     let cors = CorsLayer::new()
@@ -172,7 +183,7 @@ fn validate_model(
     state: &ApiState,
     model_version: &str,
 ) -> Result<(), (StatusCode, Json<ErrorResponse>)> {
-    let valid_models = ["ppocr-v4", "ppocr-v5", "ppocr-v6"];
+    let valid_models = ["ppocr-v4", "ppocr-v5", "ppocr-v6", "mineru"];
     if !valid_models.contains(&model_version) {
         return Err((
             StatusCode::BAD_REQUEST,
@@ -187,6 +198,11 @@ fn validate_model(
                 },
             }),
         ));
+    }
+
+    // MinerU is cloud-based — no local installation check needed
+    if model_version == "mineru" {
+        return Ok(());
     }
 
     let model_dir = PathBuf::from(&state.model_path).join(model_version);
@@ -276,9 +292,128 @@ fn run_ocr(
             text,
             regions,
             total_time_ms: result.total_time_ms,
+            format: None,
         },
         model: model_version.to_string(),
+        format: None,
     })
+}
+
+/// Run MinerU extraction on image bytes.
+fn run_mineru(
+    state: &ApiState,
+    image_data: &[u8],
+    format: &str,
+    mineru_mode: Option<&str>,
+) -> Result<OcrSuccessResponse, (StatusCode, Json<ErrorResponse>)> {
+    let client = MineruClient::new(
+        state.mineru_token.clone(),
+        state.mineru_base_url.clone(),
+    );
+
+    let output_format = if format.is_empty() {
+        &state.mineru_output_format
+    } else {
+        format
+    };
+
+    // Determine mode: explicit mode > token presence
+    let use_extract = match mineru_mode {
+        Some("extract") => true,
+        Some("flash") => false,
+        _ => client.has_token(),
+    };
+
+    if use_extract && !client.has_token() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                success: false,
+                error: ErrorDetail {
+                    code: "MINERU_NO_TOKEN".into(),
+                    message: "MinerU extract mode requires an API token. Configure it in settings or use flash mode.".into(),
+                },
+            }),
+        ));
+    }
+
+    // Save image bytes to temp file for MinerU (it needs a file path)
+    let ext = detect_image_ext(image_data);
+    let temp_path = std::env::temp_dir()
+        .join(format!("lynxocr_mineru_input.{}", ext));
+    std::fs::write(&temp_path, image_data).map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                success: false,
+                error: ErrorDetail {
+                    code: "INTERNAL_ERROR".into(),
+                    message: format!("Failed to write temp file: {e}"),
+                },
+            }),
+        )
+    })?;
+
+    let result = if use_extract {
+        client.extract(&temp_path, output_format)
+    } else {
+        client.flash_extract(&temp_path)
+    };
+
+    // Clean up temp file
+    let _ = std::fs::remove_file(&temp_path);
+
+    let result = result.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                success: false,
+                error: ErrorDetail {
+                    code: "MINERU_ERROR".into(),
+                    message: format!("MinerU extraction failed: {e}"),
+                },
+            }),
+        )
+    })?;
+
+    Ok(OcrSuccessResponse {
+        success: true,
+        data: OcrData {
+            text: result.content.clone(),
+            regions: vec![RegionInfo {
+                text: result.content,
+                confidence: 1.0,
+                bbox: vec![],
+            }],
+            total_time_ms: result.total_time_ms,
+            format: Some(result.format.clone()),
+        },
+        model: "mineru".to_string(),
+        format: Some(result.format),
+    })
+}
+
+/// Detect image extension from magic bytes.
+fn detect_image_ext(data: &[u8]) -> &'static str {
+    if data.len() < 4 {
+        return "bin";
+    }
+    if &data[0..4] == b"\x89PNG" {
+        return "png";
+    }
+    if &data[0..2] == b"\xff\xd8" {
+        return "jpg";
+    }
+    if data.len() >= 4 && &data[0..4] == b"RIFF" && data.len() >= 12 && &data[8..12] == b"WEBP" {
+        return "webp";
+    }
+    if &data[0..2] == b"BM" {
+        return "bmp";
+    }
+    if data.len() >= 4 && &data[0..4] == b"%PDF" {
+        return "pdf";
+    }
+    "bin"
 }
 
 /// Parse base64 image, supporting both plain base64 and data URI format.
@@ -361,6 +496,8 @@ async fn handle_ocr_multipart(
     // Parse multipart body using raw bytes (no UTF-8 conversion to avoid corrupting binary data)
     let mut image_data: Option<Vec<u8>> = None;
     let mut model_version: Option<String> = None;
+    let mut format: Option<String> = None;
+    let mut mineru_mode: Option<String> = None;
 
     let boundary_bytes = format!("--{boundary}").into_bytes();
     let body_bytes = &body[..];
@@ -426,6 +563,16 @@ async fn handle_ocr_multipart(
                         model_version = Some(s.trim().to_string());
                     }
                 }
+                Some("format") => {
+                    if let Ok(s) = str::from_utf8(content) {
+                        format = Some(s.trim().to_string());
+                    }
+                }
+                Some("mineru_mode") => {
+                    if let Ok(s) = str::from_utf8(content) {
+                        mineru_mode = Some(s.trim().to_string());
+                    }
+                }
                 _ => {}
             }
         }
@@ -456,6 +603,16 @@ async fn handle_ocr_multipart(
 
     if let Err(e) = validate_model(&state, &model) {
         return e.into_response();
+    }
+
+    // Route MinerU requests to MinerU client
+    if model == "mineru" {
+        let fmt = format.as_deref().unwrap_or("");
+        let mode = mineru_mode.as_deref();
+        match run_mineru(&state, &image_data, fmt, mode) {
+            Ok(resp) => return (StatusCode::OK, Json(resp)).into_response(),
+            Err(e) => return e.into_response(),
+        }
     }
 
     if let Err(e) = get_or_create_engine(&state, &model) {
@@ -545,6 +702,16 @@ async fn handle_ocr_json(
 
     if let Err(e) = validate_model(&state, &model) {
         return e.into_response();
+    }
+
+    // Route MinerU requests to MinerU client
+    if model == "mineru" {
+        let fmt = req.format.as_deref().unwrap_or("");
+        let mode = req.mineru_mode.as_deref();
+        match run_mineru(&state, &image_data, fmt, mode) {
+            Ok(resp) => return (StatusCode::OK, Json(resp)).into_response(),
+            Err(e) => return e.into_response(),
+        }
     }
 
     if let Err(e) = get_or_create_engine(&state, &model) {
@@ -639,11 +806,12 @@ async fn handle_info(State(state): State<ApiState>) -> impl IntoResponse {
         Json(InfoResponse {
             name: "LynxOCR API".into(),
             version: state.app_version.clone(),
-            engine: "PaddleOCR ONNX".into(),
+            engine: "PaddleOCR ONNX + MinerU".into(),
             available_models: vec![
                 "ppocr-v4".into(),
                 "ppocr-v5".into(),
                 "ppocr-v6".into(),
+                "mineru".into(),
             ],
             active_model,
             max_file_size_mb: state.max_file_size_mb,

@@ -5,9 +5,20 @@ All notable changes to LynxOCR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v1.1.1] - 2026-06-19
+## [v1.1.1] - 2026-06-22
 
 ### Added
+- MinerU cloud API integration for high-precision document parsing
+  - `MineruClient` engine module with flash-extract (no token) and extract (with token) modes
+  - MinerU API settings card in model management: token, base URL, default output format
+  - "MinerU Cloud" option in text recognition model dropdown
+  - Multi-format output support: Markdown, HTML, LaTeX, DOCX, JSON
+  - Format-specific result previews: HTML iframe, LaTeX source, JSON pretty-print, DOCX notice
+  - MinerU format export options in the export dropdown (HTML, LaTeX, DOCX, JSON)
+  - MinerU routing for `ocr_recognize_bytes`, `ocr_recognize_pdf`, and `ocr_screenshot_region` commands
+  - `write_binary_file` Tauri command for proper binary file export (DOCX)
+  - MinerU curl examples in API settings page (flash extract and extract with format)
+  - MinerU model entry in model manager with "Cloud API" label
 - Markdown preview and dual-format export support
   - Added `react-markdown` and `remark-gfm` dependencies
   - Added view mode toggle for plain/markdown OCR result display
@@ -17,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Bumped project version to 1.1.1
+- API server now supports `model=mineru`, `format`, and `mineru_mode` parameters
+- `ureq` `send_json` replaced with `send_string` for MinerU batch requests (ureq 2.x compat)
 
 
 ## [v1.0.1] - 2026-06-17

@@ -4,13 +4,22 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { CpuIcon, DownloadIcon, CheckCircleIcon, FolderOpenIcon } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { CpuIcon, DownloadIcon, CheckCircleIcon, FolderOpenIcon, CloudIcon, EyeIcon, EyeOffIcon } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useAppContext } from "@/lib/app-context"
 import type { AppConfig, ModelInfo, DownloadProgress } from "@/types"
 
-const OCR_MODELS = ["ppocr-v4", "ppocr-v5", "ppocr-v6"] as const
+const OCR_MODELS = ["ppocr-v4", "ppocr-v5", "ppocr-v6", "mineru"] as const
+
+const MINERU_FORMATS = [
+  { value: "md", label: "Markdown (.md)" },
+  { value: "html", label: "HTML (.html)" },
+  { value: "latex", label: "LaTeX (.tex)" },
+  { value: "docx", label: "DOCX (.docx)" },
+  { value: "json", label: "JSON (.json)" },
+]
 
 export function ModelSettingsPage() {
   const { t } = useAppContext()
@@ -20,6 +29,7 @@ export function ModelSettingsPage() {
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [selectedOcr, setSelectedOcr] = useState<string>("ppocr-v6")
+  const [showMineruToken, setShowMineruToken] = useState(false)
 
   const getModel = (name: string) => models.find((m) => m.name === name)
   const isInstalled = (name: string) => getModel(name)?.installed ?? false
@@ -74,6 +84,15 @@ export function ModelSettingsPage() {
       loadModels()
     } catch (err) {
       console.error("Failed to save model path:", err)
+    }
+  }
+
+  const saveMineruConfig = async () => {
+    if (!config) return
+    try {
+      await invoke("set_app_config", { newConfig: config })
+    } catch (err) {
+      console.error("Failed to save MinerU config:", err)
     }
   }
 
@@ -215,6 +234,75 @@ export function ModelSettingsPage() {
               {t("models.downloadHint")}
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* MinerU API Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CloudIcon className="size-5" />
+            {t("models.mineru.title")}
+          </CardTitle>
+          <CardDescription>{t("models.mineru.desc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* API Token */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="mineru-token">{t("models.mineru.token")}</Label>
+            <div className="flex gap-2">
+              <Input
+                id="mineru-token"
+                type={showMineruToken ? "text" : "password"}
+                value={config?.mineruApiToken || ""}
+                onChange={(e) => setConfig((prev) => prev ? { ...prev, mineruApiToken: e.target.value } : prev)}
+                placeholder={t("models.mineru.tokenPlaceholder")}
+              />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowMineruToken(!showMineruToken)}
+                title={showMineruToken ? t("api.hideKey") : t("api.showKey")}
+              >
+                {showMineruToken ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+              </Button>
+              <Button variant="outline" onClick={saveMineruConfig}>
+                {t("models.save")}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">{t("models.mineru.tokenHint")}</p>
+          </div>
+
+          {/* API Base URL */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="mineru-base-url">{t("models.mineru.baseUrl")}</Label>
+            <Input
+              id="mineru-base-url"
+              value={config?.mineruApiBaseUrl || ""}
+              onChange={(e) => setConfig((prev) => prev ? { ...prev, mineruApiBaseUrl: e.target.value || null } : prev)}
+              placeholder={t("models.mineru.baseUrlPlaceholder")}
+              className="max-w-[400px]"
+            />
+            <p className="text-xs text-muted-foreground">{t("models.mineru.baseUrlHint")}</p>
+          </div>
+
+          {/* Default Output Format */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="mineru-format">{t("models.mineru.outputFormat")}</Label>
+            <select
+              id="mineru-format"
+              value={config?.mineruOutputFormat || "md"}
+              onChange={(e) => setConfig((prev) => prev ? { ...prev, mineruOutputFormat: e.target.value } : prev)}
+              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm max-w-[200px]"
+            >
+              {MINERU_FORMATS.map((fmt) => (
+                <option key={fmt.value} value={fmt.value}>
+                  {fmt.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground">{t("models.mineru.formatHint")}</p>
+          </div>
         </CardContent>
       </Card>
     </div>

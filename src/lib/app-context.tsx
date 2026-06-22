@@ -45,6 +45,18 @@ const dict = {
     "models.ppocrV6Desc": "PaddleOCR V6，最新版本，多语言高精度，约 20MB",
     "models.downloadHint": "下载模型后将自动安装到模型路径中。",
 
+    // MinerU settings
+    "models.mineru.title": "MinerU API 设置",
+    "models.mineru.desc": "配置 MinerU 云 API，用于高精度文档解析",
+    "models.mineru.token": "API Token",
+    "models.mineru.tokenPlaceholder": "输入 MinerU API Token（留空使用 Flash 模式）",
+    "models.mineru.tokenHint": "填入 Token 后可使用 Extract 模式，支持多格式输出",
+    "models.mineru.baseUrl": "API 地址",
+    "models.mineru.baseUrlPlaceholder": "默认 https://mineru.net",
+    "models.mineru.baseUrlHint": "私有部署时填写自定义地址",
+    "models.mineru.outputFormat": "默认输出格式",
+    "models.mineru.formatHint": "Extract 模式下支持多格式输出",
+
     // About page
     "about.title": "关于",
     "about.desc": "离线 OCR 文字识别工具",
@@ -87,6 +99,19 @@ const dict = {
     "ocr.exportMd": "Markdown",
     "ocr.exportAs": "导出",
 
+    // MinerU OCR
+    "ocr.mineru": "MinerU Cloud",
+    "ocr.mineruFormat": "输出格式",
+    "ocr.mineruNoToken": "未配置 MinerU API Token，将使用 Flash 模式（仅支持 Markdown 输出）",
+    "ocr.mineruFlashMode": "Flash 模式",
+    "ocr.mineruExtractMode": "Extract 模式",
+    "ocr.viewHtml": "HTML 预览",
+    "ocr.viewLatex": "LaTeX 源码",
+    "ocr.exportHtml": "HTML",
+    "ocr.exportLatex": "LaTeX",
+    "ocr.exportDocx": "DOCX",
+    "ocr.exportJson": "JSON",
+
     // API settings page
     "api.title": "API 服务",
     "api.desc": "启用内置 HTTP API 服务，供其他应用调用 OCR 功能",
@@ -116,6 +141,8 @@ const dict = {
     "api.base64Curl": "Base64 图片识别 (JSON)",
     "api.urlCurl": "图床链接图片识别 (JSON)",
     "api.specifyModel": "指定模型版本",
+    "api.mineruCurl": "MinerU 快读识别",
+    "api.mineruExtractCurl": "MinerU 精确提取",
     "api.save": "保存配置",
     "api.saved": "已保存",
   },
@@ -157,6 +184,18 @@ const dict = {
     "models.ppocrV5Desc": "PaddleOCR V5, improved Chinese/English accuracy, ~20MB",
     "models.ppocrV6Desc": "PaddleOCR V6, latest version, multilingual high accuracy, ~20MB",
     "models.downloadHint": "Download models. Automatically installed to the model path after download.",
+
+    // MinerU settings
+    "models.mineru.title": "MinerU API Settings",
+    "models.mineru.desc": "Configure MinerU cloud API for high-precision document parsing",
+    "models.mineru.token": "API Token",
+    "models.mineru.tokenPlaceholder": "Enter MinerU API Token (leave empty for Flash mode)",
+    "models.mineru.tokenHint": "With token, Extract mode is available with multi-format output",
+    "models.mineru.baseUrl": "API Base URL",
+    "models.mineru.baseUrlPlaceholder": "Default https://mineru.net",
+    "models.mineru.baseUrlHint": "Custom address for private deployments",
+    "models.mineru.outputFormat": "Default Output Format",
+    "models.mineru.formatHint": "Extract mode supports multi-format output",
 
     // About page
     "about.title": "About",
@@ -200,6 +239,19 @@ const dict = {
     "ocr.exportMd": "MD",
     "ocr.exportAs": "Export",
 
+    // MinerU OCR
+    "ocr.mineru": "MinerU Cloud",
+    "ocr.mineruFormat": "Output Format",
+    "ocr.mineruNoToken": "No MinerU API token configured. Flash mode will be used (Markdown only).",
+    "ocr.mineruFlashMode": "Flash Mode",
+    "ocr.mineruExtractMode": "Extract Mode",
+    "ocr.viewHtml": "HTML Preview",
+    "ocr.viewLatex": "LaTeX Source",
+    "ocr.exportHtml": "HTML",
+    "ocr.exportLatex": "LaTeX",
+    "ocr.exportDocx": "DOCX",
+    "ocr.exportJson": "JSON",
+
     // API settings page
     "api": "API Service",
     "header.api-settings": "API Service",
@@ -231,6 +283,8 @@ const dict = {
     "api.base64Curl": "Base64 Image OCR (JSON)",
     "api.urlCurl": "Image URL OCR (JSON)",
     "api.specifyModel": "Specify Model Version",
+    "api.mineruCurl": "MinerU Flash Extract",
+    "api.mineruExtractCurl": "MinerU Extract",
     "api.save": "Save Configuration",
     "api.saved": "Saved",
   },

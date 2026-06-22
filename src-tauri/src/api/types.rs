@@ -11,6 +11,14 @@ pub struct OcrJsonRequest {
     pub url: Option<String>,
     /// Optional model version override.
     pub model: Option<String>,
+    /// Output format for MinerU (md, html, latex, docx, json).
+    /// Ignored for PaddleOCR models.
+    #[serde(default)]
+    pub format: Option<String>,
+    /// MinerU mode override: "flash" or "extract".
+    /// When empty, mode is determined by whether token is configured.
+    #[serde(default)]
+    pub mineru_mode: Option<String>,
 }
 
 /// Success response wrapper.
@@ -20,6 +28,10 @@ pub struct OcrSuccessResponse {
     pub success: bool,
     pub data: OcrData,
     pub model: String,
+    /// Output format for MinerU results (md, html, latex, docx, json).
+    /// Omitted for PaddleOCR results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
 }
 
 /// OCR data payload.
@@ -32,6 +44,10 @@ pub struct OcrData {
     pub regions: Vec<RegionInfo>,
     /// Total recognition time in milliseconds.
     pub total_time_ms: u64,
+    /// Output format for MinerU results (md, html, latex, docx, json).
+    /// Omitted for PaddleOCR results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<String>,
 }
 
 /// Single text region with bounding box and confidence.

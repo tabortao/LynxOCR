@@ -9,6 +9,9 @@ export interface AppConfig {
   apiKey: string;
   apiServerAutoStart: boolean;
   maxFileSizeMb: number;
+  mineruApiToken: string;
+  mineruApiBaseUrl: string | null;
+  mineruOutputFormat: string;
 }
 
 /** 模型下载进度 */
@@ -43,6 +46,7 @@ export interface OcrTextBlock {
 export interface OcrResult {
   textBlocks: OcrTextBlock[];
   totalTimeMs: number;
+  format?: string;
 }
 
 export interface ScreenshotCapture {

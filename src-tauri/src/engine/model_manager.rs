@@ -152,6 +152,13 @@ impl ModelManager {
                     None
                 },
             },
+            ModelInfo {
+                name: "mineru".into(),
+                display_name: "MinerU Cloud".into(),
+                size: "Cloud API".into(),
+                installed: true,
+                path: None,
+            },
         ]
     }
 
