@@ -3,6 +3,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
+import rehypeRaw from "rehype-raw"
 import "katex/dist/katex.min.css"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -87,6 +88,9 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
   const [viewModes, setViewModes] = useState<
     Record<number, "plain" | "markdown">
+  >({})
+  const [mineruViewModes, setMineruViewModes] = useState<
+    Record<number, "rendered" | "raw">
   >({})
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const modelInstalledRef = useRef(false)
@@ -970,14 +974,33 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
                 {expandedIdx === idx && (
                   <CardContent className="pt-0 pb-3">
                     <Separator className="mb-3" />
-                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    <div
+                      className={
+                        item.state === "completed" &&
+                        item.result?.format === "md"
+                          ? "flex flex-col gap-3"
+                          : "grid grid-cols-1 gap-3 lg:grid-cols-2"
+                      }
+                    >
                       {/* Image preview */}
                       {item.imageUrl && (
-                        <div className="relative overflow-hidden rounded-lg bg-muted">
+                        <div
+                          className={
+                            item.state === "completed" &&
+                            item.result?.format === "md"
+                              ? "relative overflow-hidden rounded-lg bg-muted"
+                              : "relative overflow-hidden rounded-lg bg-muted"
+                          }
+                        >
                           <img
                             src={item.imageUrl}
                             alt="Preview"
-                            className="mx-auto max-h-[300px] max-w-full object-contain"
+                            className={
+                              item.state === "completed" &&
+                              item.result?.format === "md"
+                                ? "mx-auto max-h-[200px] max-w-full object-contain"
+                                : "mx-auto max-h-[300px] max-w-full object-contain"
+                            }
                           />
                         </div>
                       )}
@@ -1068,43 +1091,97 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
                                   item.result.format === "md") && (
                                   <>
                                     {item.result.format === "md" ? (
-                                      // MinerU markdown: always render preview with math + table support
-                                      <div className="max-h-[350px] overflow-y-auto rounded-lg border bg-background p-3">
-                                        <div className="
-                                          text-sm leading-relaxed
-                                          [&_h1]:mb-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-bold
-                                          [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold
-                                          [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-medium
-                                          [&_p]:my-1.5 [&_p]:leading-relaxed
-                                          [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:text-xs
-                                          [&_code]:rounded [&_code]:bg-muted/50 [&_code]:px-1 [&_code]:text-xs [&_code]:font-mono
-                                          [&_pre_code]:bg-transparent [&_pre_code]:p-0
-                                          [&_table]:my-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs
-                                          [&_thead]:border-b [&_thead]:border-border
-                                          [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-2 [&_th]:text-left [&_th]:font-medium
-                                          [&_td]:border [&_td]:border-border [&_td]:p-2
-                                          [&_tr]:border-b [&_tr]:border-border
-                                          [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_blockquote]:text-xs
-                                          [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5
-                                          [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5
-                                          [&_li]:my-0.5
-                                          [&_a]:text-primary [&_a]:underline
-                                          [&_hr]:my-3 [&_hr]:border-border
-                                          [&_img]:max-w-full [&_img]:rounded
-                                          ui-selectable
-                                        ">
-                                          <ReactMarkdown
-                                            remarkPlugins={[
-                                              remarkGfm,
-                                              remarkMath,
-                                            ]}
-                                            rehypePlugins={[rehypeKatex]}
+                                      // MinerU markdown: full-width rendered preview with math + table + raw toggle
+                                      <div className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant={
+                                              mineruViewModes[idx] === "raw"
+                                                ? "ghost"
+                                                : "secondary"
+                                            }
+                                            size="sm"
+                                            className="h-7 text-xs"
+                                            onClick={() =>
+                                              setMineruViewModes((prev) => ({
+                                                ...prev,
+                                                [idx]: "rendered",
+                                              }))
+                                            }
                                           >
+                                            <EyeIcon className="mr-1 size-3.5" />
+                                            {t("ocr.viewMarkdown")}
+                                          </Button>
+                                          <Button
+                                            variant={
+                                              mineruViewModes[idx] === "raw"
+                                                ? "secondary"
+                                                : "ghost"
+                                            }
+                                            size="sm"
+                                            className="h-7 text-xs"
+                                            onClick={() =>
+                                              setMineruViewModes((prev) => ({
+                                                ...prev,
+                                                [idx]: "raw",
+                                              }))
+                                            }
+                                          >
+                                            <AlignLeftIcon className="mr-1 size-3.5" />
+                                            {t("ocr.viewPlain")}
+                                          </Button>
+                                        </div>
+
+                                        {mineruViewModes[idx] === "raw" ? (
+                                          <pre className="max-h-[500px] overflow-auto rounded-lg border bg-muted/30 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-all">
                                             {item.result.textBlocks
                                               .map((b) => b.text)
                                               .join("\n\n")}
-                                          </ReactMarkdown>
-                                        </div>
+                                          </pre>
+                                        ) : (
+                                          <div className="max-h-[600px] overflow-auto rounded-lg border bg-background p-4">
+                                            <div className="
+                                              text-sm leading-relaxed
+                                              [&_h1]:mb-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-bold
+                                              [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold
+                                              [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-medium
+                                              [&_p]:my-1.5 [&_p]:leading-relaxed
+                                              [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:text-xs
+                                              [&_code]:rounded [&_code]:bg-muted/50 [&_code]:px-1 [&_code]:text-xs [&_code]:font-mono
+                                              [&_pre_code]:bg-transparent [&_pre_code]:p-0
+                                              [&_table]:my-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs
+                                              [&_thead]:border-b [&_thead]:border-border
+                                              [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-2 [&_th]:text-left [&_th]:font-medium
+                                              [&_td]:border [&_td]:border-border [&_td]:p-2
+                                              [&_tr]:border-b [&_tr]:border-border
+                                              [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_blockquote]:text-xs
+                                              [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5
+                                              [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5
+                                              [&_li]:my-0.5
+                                              [&_a]:text-primary [&_a]:underline
+                                              [&_hr]:my-3 [&_hr]:border-border
+                                              [&_img]:max-w-full [&_img]:rounded
+                                              [&_.katex]:text-sm
+                                              [&_.katex-display]:my-2 [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden
+                                              ui-selectable
+                                            ">
+                                              <ReactMarkdown
+                                                remarkPlugins={[
+                                                  remarkGfm,
+                                                  remarkMath,
+                                                ]}
+                                                rehypePlugins={[
+                                                  rehypeRaw,
+                                                  rehypeKatex,
+                                                ]}
+                                              >
+                                                {item.result.textBlocks
+                                                  .map((b) => b.text)
+                                                  .join("\n\n")}
+                                              </ReactMarkdown>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     ) : (
                                       <>
@@ -1179,14 +1256,17 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
 
                                         {/* Markdown preview */}
                                         {viewModes[idx] === "markdown" && (
-                                          <div className="max-h-[250px] overflow-y-auto rounded-lg border bg-background p-3">
-                                            <div className="text-sm leading-relaxed [&_h1]:mb-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-medium [&_p]:my-1.5 [&_p]:leading-relaxed [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:text-xs [&_code]:rounded [&_code]:bg-muted/50 [&_code]:px-1 [&_code]:text-xs [&_code]:font-mono [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:my-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-2 [&_th]:text-left [&_th]:font-medium [&_td]:border [&_td]:border-border [&_td]:p-2 [&_tr]:border-b [&_tr]:border-border [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_blockquote]:text-xs [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_a]:text-primary [&_a]:underline [&_hr]:my-3 [&_hr]:border-border [&_img]:max-w-full [&_img]:rounded ui-selectable">
+                                          <div className="max-h-[350px] overflow-auto rounded-lg border bg-background p-3">
+                                            <div className="text-sm leading-relaxed [&_h1]:mb-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-medium [&_p]:my-1.5 [&_p]:leading-relaxed [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:text-xs [&_code]:rounded [&_code]:bg-muted/50 [&_code]:px-1 [&_code]:text-xs [&_code]:font-mono [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:my-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-2 [&_th]:text-left [&_th]:font-medium [&_td]:border [&_td]:border-border [&_td]:p-2 [&_tr]:border-b [&_tr]:border-border [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_blockquote]:text-xs [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_a]:text-primary [&_a]:underline [&_hr]:my-3 [&_hr]:border-border [&_img]:max-w-full [&_img]:rounded [&_.katex]:text-sm [&_.katex-display]:my-2 [&_.katex-display]:overflow-x-auto [&_.katex-display]:overflow-y-hidden ui-selectable">
                                               <ReactMarkdown
                                                 remarkPlugins={[
                                                   remarkGfm,
                                                   remarkMath,
                                                 ]}
-                                                rehypePlugins={[rehypeKatex]}
+                                                rehypePlugins={[
+                                                  rehypeRaw,
+                                                  rehypeKatex,
+                                                ]}
                                               >
                                                 {item.result.textBlocks
                                                   .map((b) => b.text)

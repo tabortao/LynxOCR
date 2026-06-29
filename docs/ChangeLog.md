@@ -5,6 +5,18 @@ All notable changes to LynxOCR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.2] - 2026-06-29
+
+### Changed
+- Optimized MinerU Markdown result display with full-width layout and larger preview area (600px)
+- Added raw markdown source / rendered preview toggle for MinerU results
+- Improved KaTeX formula rendering: added `.katex-display` overflow handling and font sizing
+- Enhanced markdown preview typography for both MinerU and PaddleOCR views
+
+### Fixed
+- MinerU HTML table rendering in Markdown preview: added `rehype-raw` plugin to parse embedded HTML tables properly
+- Markdown preview containers now use `overflow-auto` for horizontal scrolling of wide tables
+
 ## [v1.1.1] - 2026-06-22
 
 ### Added
