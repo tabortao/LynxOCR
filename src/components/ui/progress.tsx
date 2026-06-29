@@ -15,13 +15,13 @@ function Progress({
       aria-valuemin={0}
       aria-valuemax={100}
       className={cn(
-        "bg-primary/20 relative h-2 w-full overflow-hidden rounded-full",
-        className,
+        "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+        className
       )}
       {...props}
     >
       <div
-        className="bg-primary h-full w-full flex-1 transition-all"
+        className="h-full w-full flex-1 bg-primary transition-all"
         style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
       />
     </div>

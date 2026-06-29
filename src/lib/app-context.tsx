@@ -1,4 +1,10 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react"
 
 export type Language = "zh" | "en"
 
@@ -29,7 +35,8 @@ const dict = {
     "settings.saved": "已保存",
     "settings.loading": "加载中...",
     "settings.ocrScreenshotShortcut": "截图 OCR 快捷键",
-    "settings.ocrScreenshotShortcutDesc": "设置截图识别的快捷键，例如 Ctrl+Shift+O",
+    "settings.ocrScreenshotShortcutDesc":
+      "设置截图识别的快捷键，例如 Ctrl+Shift+O",
 
     // Model settings page
     "models.title.storage": "模型存储路径",
@@ -49,8 +56,10 @@ const dict = {
     "models.mineru.title": "MinerU API 设置",
     "models.mineru.desc": "配置 MinerU 云 API，用于高精度文档解析",
     "models.mineru.token": "API Token",
-    "models.mineru.tokenPlaceholder": "输入 MinerU API Token（留空使用 Flash 模式）",
-    "models.mineru.tokenHint": "填入 Token 后可使用 Extract 模式，支持多格式输出",
+    "models.mineru.tokenPlaceholder":
+      "输入 MinerU API Token（留空使用 Flash 模式）",
+    "models.mineru.tokenHint":
+      "填入 Token 后可使用 Extract 模式，支持多格式输出",
     "models.mineru.baseUrl": "API 地址",
     "models.mineru.baseUrlPlaceholder": "默认 https://mineru.net",
     "models.mineru.baseUrlHint": "私有部署时填写自定义地址",
@@ -60,7 +69,8 @@ const dict = {
     // About page
     "about.title": "关于",
     "about.desc": "离线 OCR 文字识别工具",
-    "about.description": "LynxOCR 是一款跨平台离线 OCR 文字识别桌面应用。基于 PaddleOCR (PP-OCR V4/V5/V6) 和 ONNX Runtime，支持截图识别和图片/PDF 文字提取，无需联网，保障数据隐私。",
+    "about.description":
+      "LynxOCR 是一款跨平台离线 OCR 文字识别桌面应用。基于 PaddleOCR (PP-OCR V4/V5/V6) 和 ONNX Runtime，支持截图识别和图片/PDF 文字提取，无需联网，保障数据隐私。",
     "about.techStack": "技术栈",
     "about.version": "版本",
 
@@ -102,7 +112,8 @@ const dict = {
     // MinerU OCR
     "ocr.mineru": "MinerU Cloud",
     "ocr.mineruFormat": "输出格式",
-    "ocr.mineruNoToken": "未配置 MinerU API Token，将使用 Flash 模式（仅支持 Markdown 输出）",
+    "ocr.mineruNoToken":
+      "未配置 MinerU API Token，将使用 Flash 模式（仅支持 Markdown 输出）",
     "ocr.mineruFlashMode": "Flash 模式",
     "ocr.mineruExtractMode": "Extract 模式",
     "ocr.viewHtml": "HTML 预览",
@@ -169,7 +180,8 @@ const dict = {
     "settings.saved": "Saved",
     "settings.loading": "Loading...",
     "settings.ocrScreenshotShortcut": "Screenshot OCR Shortcut",
-    "settings.ocrScreenshotShortcutDesc": "Set the keyboard shortcut for screenshot OCR, e.g. Ctrl+Shift+O",
+    "settings.ocrScreenshotShortcutDesc":
+      "Set the keyboard shortcut for screenshot OCR, e.g. Ctrl+Shift+O",
 
     // Model settings page
     "models.title.storage": "Model Storage Path",
@@ -180,17 +192,24 @@ const dict = {
     "models.installed": "Installed",
     "models.download": "Download",
     "models.downloading": "Downloading...",
-    "models.ppocrV4Desc": "PaddleOCR V4, Chinese/English text detection & recognition, ~20MB",
-    "models.ppocrV5Desc": "PaddleOCR V5, improved Chinese/English accuracy, ~20MB",
-    "models.ppocrV6Desc": "PaddleOCR V6, latest version, multilingual high accuracy, ~20MB",
-    "models.downloadHint": "Download models. Automatically installed to the model path after download.",
+    "models.ppocrV4Desc":
+      "PaddleOCR V4, Chinese/English text detection & recognition, ~20MB",
+    "models.ppocrV5Desc":
+      "PaddleOCR V5, improved Chinese/English accuracy, ~20MB",
+    "models.ppocrV6Desc":
+      "PaddleOCR V6, latest version, multilingual high accuracy, ~20MB",
+    "models.downloadHint":
+      "Download models. Automatically installed to the model path after download.",
 
     // MinerU settings
     "models.mineru.title": "MinerU API Settings",
-    "models.mineru.desc": "Configure MinerU cloud API for high-precision document parsing",
+    "models.mineru.desc":
+      "Configure MinerU cloud API for high-precision document parsing",
     "models.mineru.token": "API Token",
-    "models.mineru.tokenPlaceholder": "Enter MinerU API Token (leave empty for Flash mode)",
-    "models.mineru.tokenHint": "With token, Extract mode is available with multi-format output",
+    "models.mineru.tokenPlaceholder":
+      "Enter MinerU API Token (leave empty for Flash mode)",
+    "models.mineru.tokenHint":
+      "With token, Extract mode is available with multi-format output",
     "models.mineru.baseUrl": "API Base URL",
     "models.mineru.baseUrlPlaceholder": "Default https://mineru.net",
     "models.mineru.baseUrlHint": "Custom address for private deployments",
@@ -200,13 +219,15 @@ const dict = {
     // About page
     "about.title": "About",
     "about.desc": "Offline OCR Text Recognition",
-    "about.description": "LynxOCR is a cross-platform desktop application for offline OCR text recognition. Powered by PaddleOCR (PP-OCR V4/V5/V6) and ONNX Runtime, it supports screenshot OCR and image/PDF text extraction without requiring an internet connection, ensuring your data privacy.",
+    "about.description":
+      "LynxOCR is a cross-platform desktop application for offline OCR text recognition. Powered by PaddleOCR (PP-OCR V4/V5/V6) and ONNX Runtime, it supports screenshot OCR and image/PDF text extraction without requiring an internet connection, ensuring your data privacy.",
     "about.techStack": "Tech Stack",
     "about.version": "Version",
 
     // OCR page
     "ocr.title": "OCR Text Recognition",
-    "ocr.desc": "Supports PNG, JPG, JPEG, BMP, WEBP image formats and PDF documents",
+    "ocr.desc":
+      "Supports PNG, JPG, JPEG, BMP, WEBP image formats and PDF documents",
     "ocr.dropImages": "Drop files to recognize text",
     "ocr.clickOrDrag": "Click to select or drag files (images/PDF) here",
     "ocr.selectImage": "Select File",
@@ -219,9 +240,11 @@ const dict = {
     "ocr.confidence": "Confidence",
     "ocr.clear": "Clear",
     "ocr.textBlocks": "{count} text block(s)",
-    "ocr.noModel": "No OCR model installed. Please download one in Model Settings.",
+    "ocr.noModel":
+      "No OCR model installed. Please download one in Model Settings.",
     "ocr.failed": "OCR recognition failed",
-    "ocr.modelNotInstalled": "OCR model {model} is not installed. Please download it in Model Settings.",
+    "ocr.modelNotInstalled":
+      "OCR model {model} is not installed. Please download it in Model Settings.",
     "ocr.completedToast": "OCR complete · {blocks} text block(s) · {time}s",
     "ocr.screenshotBtn": "Screenshot OCR",
     "ocr.screenshotDesc": "Capture screen region and recognize text",
@@ -242,7 +265,8 @@ const dict = {
     // MinerU OCR
     "ocr.mineru": "MinerU Cloud",
     "ocr.mineruFormat": "Output Format",
-    "ocr.mineruNoToken": "No MinerU API token configured. Flash mode will be used (Markdown only).",
+    "ocr.mineruNoToken":
+      "No MinerU API token configured. Flash mode will be used (Markdown only).",
     "ocr.mineruFlashMode": "Flash Mode",
     "ocr.mineruExtractMode": "Extract Mode",
     "ocr.viewHtml": "HTML Preview",
@@ -253,10 +277,11 @@ const dict = {
     "ocr.exportJson": "JSON",
 
     // API settings page
-    "api": "API Service",
+    api: "API Service",
     "header.api-settings": "API Service",
     "api.title": "API Service",
-    "api.desc": "Enable built-in HTTP API service for other applications to call OCR",
+    "api.desc":
+      "Enable built-in HTTP API service for other applications to call OCR",
     "api.serverStatus": "Server Status",
     "api.serverRunning": "Running · Port {port}",
     "api.serverStopped": "Server not running",
@@ -269,7 +294,8 @@ const dict = {
     "api.port": "Port",
     "api.key": "API Key (optional)",
     "api.keyPlaceholder": "Leave empty to disable authentication",
-    "api.keyHint": "When set, all endpoints except /health require Bearer token authentication",
+    "api.keyHint":
+      "When set, all endpoints except /health require Bearer token authentication",
     "api.hideKey": "Hide key",
     "api.showKey": "Show key",
     "api.maxFileSize": "Max upload file size (MB)",
@@ -290,7 +316,11 @@ const dict = {
   },
 }
 
-export function t(language: Language, key: string, vars?: Record<string, string | number>): string {
+export function t(
+  language: Language,
+  key: string,
+  vars?: Record<string, string | number>
+): string {
   const langDict = dict[language] as Record<string, string>
   const fallbackDict = dict["en"] as Record<string, string>
   let text = langDict[key] ?? fallbackDict[key] ?? key
@@ -325,7 +355,9 @@ export function useAppContext() {
 export function AppProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window !== "undefined") {
-      return (localStorage.getItem("lynxocr-theme") as "light" | "dark") || "dark"
+      return (
+        (localStorage.getItem("lynxocr-theme") as "light" | "dark") || "dark"
+      )
     }
     return "dark"
   })
@@ -355,10 +387,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"))
   }
 
-  const translate = (key: string, vars?: Record<string, string | number>) => t(language, key, vars)
+  const translate = (key: string, vars?: Record<string, string | number>) =>
+    t(language, key, vars)
 
   return (
-    <AppContext.Provider value={{ theme, toggleTheme, language, setLanguage, t: translate }}>
+    <AppContext.Provider
+      value={{ theme, toggleTheme, language, setLanguage, t: translate }}
+    >
       {children}
     </AppContext.Provider>
   )

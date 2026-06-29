@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
+import "katex/dist/katex.min.css"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -82,10 +85,14 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   const [expandedIdx, setExpandedIdx] = useState<number>(-1)
   const [batchProcessing, setBatchProcessing] = useState(false)
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 })
-  const [viewModes, setViewModes] = useState<Record<number, "plain" | "markdown">>({})
+  const [viewModes, setViewModes] = useState<
+    Record<number, "plain" | "markdown">
+  >({})
   const flashTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const modelInstalledRef = useRef(false)
-  const startBatchOCRForPathsRef = useRef<(paths: string[]) => Promise<void>>(undefined as unknown as (paths: string[]) => Promise<void>)
+  const startBatchOCRForPathsRef = useRef<(paths: string[]) => Promise<void>>(
+    undefined as unknown as (paths: string[]) => Promise<void>
+  )
 
   const isMineru = activeModel === "mineru"
   const hasMineruToken = (config?.mineruApiToken?.length ?? 0) > 0
@@ -122,7 +129,10 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
         const models = await invoke<ModelInfo[]>("list_models")
         const installed = new Set<string>()
         for (const m of models) {
-          if (MODEL_NAMES.includes(m.name as typeof MODEL_NAMES[number]) && m.installed) {
+          if (
+            MODEL_NAMES.includes(m.name as (typeof MODEL_NAMES)[number]) &&
+            m.installed
+          ) {
             installed.add(m.name)
           }
         }
@@ -144,7 +154,8 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   // Listen for screenshot OCR results
   useEffect(() => {
     const handler = (e: Event) => {
-      const { text, timeMs, croppedImagePath, ocrResult } = (e as CustomEvent).detail
+      const { text, timeMs, croppedImagePath, ocrResult } = (e as CustomEvent)
+        .detail
       if (text) {
         const screenshotItem: BatchOcrItem = {
           path: "",
@@ -174,7 +185,8 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
       }
     }
     window.addEventListener("lynxocr:screenshot-ocr-result", handler)
-    return () => window.removeEventListener("lynxocr:screenshot-ocr-result", handler)
+    return () =>
+      window.removeEventListener("lynxocr:screenshot-ocr-result", handler)
   }, [showFlash, t])
 
   // Handle file drop events
@@ -209,9 +221,12 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
         unlistenHover = await listen<boolean>("tauri://file-drop-hover", () => {
           setIsDragOver(true)
         })
-        unlistenHoverLeave = await listen<boolean>("tauri://file-drop-hover", (event) => {
-          if (!event.payload) setIsDragOver(false)
-        })
+        unlistenHoverLeave = await listen<boolean>(
+          "tauri://file-drop-hover",
+          (event) => {
+            if (!event.payload) setIsDragOver(false)
+          }
+        )
       } catch {
         // ignore
       }
@@ -273,7 +288,8 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
 
   const addPdfFiles = useCallback(
     (paths: string[]) => {
-      if (!modelInstalledRef.current || !startBatchOCRForPathsRef.current) return
+      if (!modelInstalledRef.current || !startBatchOCRForPathsRef.current)
+        return
 
       for (const pdfPath of paths) {
         const fileName = pdfPath.split(/[/\\]/).pop() || pdfPath
@@ -307,7 +323,11 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
               setItems((prev) =>
                 prev.map((it) =>
                   it.path === pdfPath
-                    ? { ...it, state: "completed" as OCRState, result: { textBlocks: [], totalTimeMs: 0 } }
+                    ? {
+                        ...it,
+                        state: "completed" as OCRState,
+                        result: { textBlocks: [], totalTimeMs: 0 },
+                      }
                     : it
                 )
               )
@@ -316,7 +336,9 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
 
             // Remove the placeholder and add individual page items
             setItems((prev) => {
-              const withoutPlaceholder = prev.filter((it) => it.path !== pdfPath)
+              const withoutPlaceholder = prev.filter(
+                (it) => it.path !== pdfPath
+              )
               const pageItems: BatchOcrItem[] = results.map((r) => ({
                 path: `${pdfPath}#page=${r.pageIndex}`,
                 fileName: `${fileName} - ${t("ocr.pdfPage", { page: r.pageIndex + 1 })}`,
@@ -343,61 +365,68 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
     [activeModel, t]
   )
 
-  const startBatchOCRForPaths = useCallback(async (paths: string[]) => {
-    if (!modelInstalled || paths.length === 0) return
+  const startBatchOCRForPaths = useCallback(
+    async (paths: string[]) => {
+      if (!modelInstalled || paths.length === 0) return
 
-    setBatchProcessing(true)
-    setBatchProgress({ current: 0, total: paths.length })
+      setBatchProcessing(true)
+      setBatchProgress({ current: 0, total: paths.length })
 
-    let succeeded = 0
-    let failed = 0
-    let totalTimeMs = 0
+      let succeeded = 0
+      let failed = 0
+      let totalTimeMs = 0
 
-    for (let i = 0; i < paths.length; i++) {
-      const itemPath = paths[i]
-      setBatchProgress({ current: i + 1, total: paths.length })
+      for (let i = 0; i < paths.length; i++) {
+        const itemPath = paths[i]
+        setBatchProgress({ current: i + 1, total: paths.length })
 
-      // Mark item as loading
-      setItems((prev) =>
-        prev.map((it) =>
-          it.path === itemPath ? { ...it, state: "loading" as OCRState, error: null } : it
-        )
-      )
-
-      try {
-        const res = await invoke<OcrResult>("ocr_recognize", {
-          imagePath: itemPath,
-          modelVersion: activeModel,
-        })
-        setItems((prev) =>
-          prev.map((it) =>
-            it.path === itemPath ? { ...it, state: "completed" as OCRState, result: res } : it
-          )
-        )
-        succeeded++
-        totalTimeMs += res.totalTimeMs
-      } catch (err) {
+        // Mark item as loading
         setItems((prev) =>
           prev.map((it) =>
             it.path === itemPath
-              ? { ...it, state: "error" as OCRState, error: String(err) }
+              ? { ...it, state: "loading" as OCRState, error: null }
               : it
           )
         )
-        failed++
-      }
-    }
 
-    setBatchProcessing(false)
-    showFlash(
-      t("ocr.batchDone", {
-        count: succeeded,
-        time: (totalTimeMs / 1000).toFixed(1),
-      })
-    )
-    // Release engine after batch completes to free memory
-    invoke("ocr_release").catch(() => {})
-  }, [modelInstalled, activeModel, showFlash, t])
+        try {
+          const res = await invoke<OcrResult>("ocr_recognize", {
+            imagePath: itemPath,
+            modelVersion: activeModel,
+          })
+          setItems((prev) =>
+            prev.map((it) =>
+              it.path === itemPath
+                ? { ...it, state: "completed" as OCRState, result: res }
+                : it
+            )
+          )
+          succeeded++
+          totalTimeMs += res.totalTimeMs
+        } catch (err) {
+          setItems((prev) =>
+            prev.map((it) =>
+              it.path === itemPath
+                ? { ...it, state: "error" as OCRState, error: String(err) }
+                : it
+            )
+          )
+          failed++
+        }
+      }
+
+      setBatchProcessing(false)
+      showFlash(
+        t("ocr.batchDone", {
+          count: succeeded,
+          time: (totalTimeMs / 1000).toFixed(1),
+        })
+      )
+      // Release engine after batch completes to free memory
+      invoke("ocr_release").catch(() => {})
+    },
+    [modelInstalled, activeModel, showFlash, t]
+  )
 
   // Keep ref in sync so addFiles can call it without stale closure
   useEffect(() => {
@@ -405,7 +434,9 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   }, [startBatchOCRForPaths])
 
   const startBatchOCR = async () => {
-    const pendingItems = items.filter((item) => item.state === "idle" || item.state === "error")
+    const pendingItems = items.filter(
+      (item) => item.state === "idle" || item.state === "error"
+    )
     if (pendingItems.length === 0) return
     await startBatchOCRForPaths(pendingItems.map((item) => item.path))
   }
@@ -422,7 +453,10 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
       const models = await invoke<ModelInfo[]>("list_models")
       const installed = new Set<string>()
       for (const m of models) {
-        if (MODEL_NAMES.includes(m.name as typeof MODEL_NAMES[number]) && m.installed) {
+        if (
+          MODEL_NAMES.includes(m.name as (typeof MODEL_NAMES)[number]) &&
+          m.installed
+        ) {
           installed.add(m.name)
         }
       }
@@ -473,7 +507,9 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   }
 
   const handleExportAllTxt = async () => {
-    const completedItems = items.filter((item) => item.state === "completed" && item.result)
+    const completedItems = items.filter(
+      (item) => item.state === "completed" && item.result
+    )
     if (completedItems.length === 0) return
 
     // Combine all results into a single text
@@ -499,7 +535,9 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   }
 
   const handleExportMd = async () => {
-    const completedItems = items.filter((item) => item.state === "completed" && item.result)
+    const completedItems = items.filter(
+      (item) => item.state === "completed" && item.result
+    )
     if (completedItems.length === 0) return
 
     const now = new Date().toISOString().replace("T", " ").slice(0, 19)
@@ -546,7 +584,9 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
   }
 
   const handleExportMineruFormat = async (format: string) => {
-    const completedItems = items.filter((item) => item.state === "completed" && item.result)
+    const completedItems = items.filter(
+      (item) => item.state === "completed" && item.result
+    )
     if (completedItems.length === 0) return
 
     const content = completedItems
@@ -570,7 +610,10 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
       if (format === "docx") {
         // DOCX is base64 encoded in the textBlocks
         const base64Data = completedItems[0].result!.textBlocks[0]?.text || ""
-        await invoke("write_binary_file", { path: exportPath, base64Content: base64Data })
+        await invoke("write_binary_file", {
+          path: exportPath,
+          base64Content: base64Data,
+        })
       } else {
         await invoke("write_text_file", { path: exportPath, content })
         await invoke("open_file_with_system", { path: exportPath })
@@ -590,12 +633,14 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
 
   const hasItems = items.length > 0
   const hasCompleted = items.some((item) => item.state === "completed")
-  const hasPending = items.some((item) => item.state === "idle" || item.state === "error")
+  const hasPending = items.some(
+    (item) => item.state === "idle" || item.state === "error"
+  )
 
   return (
-    <div className="px-4 lg:px-6 space-y-4">
+    <div className="space-y-4 px-4 lg:px-6">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex flex-wrap items-center gap-2">
         <select
           value={activeModel}
           onChange={(e) => handleModelChange(e.target.value)}
@@ -604,7 +649,9 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
           {MODEL_NAMES.map((key) => (
             <option key={key} value={key}>
               {MODEL_DISPLAY[key]}
-              {installedModels.has(key) || key === "mineru" ? "" : " (not installed)"}
+              {installedModels.has(key) || key === "mineru"
+                ? ""
+                : " (not installed)"}
             </option>
           ))}
         </select>
@@ -637,28 +684,35 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
           size="sm"
           title={t("ocr.screenshotDesc")}
         >
-          <CameraIcon className="size-4 mr-1" />
+          <CameraIcon className="mr-1 size-4" />
           {t("ocr.screenshotBtn")}
         </Button>
         <Button onClick={handleOpenFile} variant="outline" size="sm">
-          <UploadIcon className="size-4 mr-1" />
+          <UploadIcon className="mr-1 size-4" />
           {t("ocr.selectImage")}
         </Button>
         {hasPending && !batchProcessing && (
-          <Button onClick={startBatchOCR} variant="outline" size="sm" title={t("ocr.retryFailed")}>
-            <ScanTextIcon className="size-4 mr-1" />
+          <Button
+            onClick={startBatchOCR}
+            variant="outline"
+            size="sm"
+            title={t("ocr.retryFailed")}
+          >
+            <ScanTextIcon className="mr-1 size-4" />
             {t("ocr.retryFailed")}
           </Button>
         )}
         {batchProcessing && (
           <Badge variant="secondary" className="h-9 px-3 tabular-nums">
-            {Math.round((batchProgress.current / Math.max(batchProgress.total, 1)) * 100)}%
-            {" "}({batchProgress.current}/{batchProgress.total})
+            {Math.round(
+              (batchProgress.current / Math.max(batchProgress.total, 1)) * 100
+            )}
+            % ({batchProgress.current}/{batchProgress.total})
           </Badge>
         )}
         {hasCompleted && (
           <Button onClick={handleCopyAllText} variant="outline" size="sm">
-            <CopyIcon className="size-4 mr-1" />
+            <CopyIcon className="mr-1 size-4" />
             {t("ocr.copyAllText")}
           </Button>
         )}
@@ -666,36 +720,44 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
-                <FileTextIcon className="size-4 mr-1" />
+                <FileTextIcon className="mr-1 size-4" />
                 {t("ocr.exportAs")}
-                <ChevronDownIcon className="size-3 ml-1" />
+                <ChevronDownIcon className="ml-1 size-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={handleExportAllTxt}>
-                <FileTextIcon className="size-4 mr-2" />
+                <FileTextIcon className="mr-2 size-4" />
                 {t("ocr.exportTxt")} (.txt)
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleExportMd}>
-                <FileTextIcon className="size-4 mr-2" />
+                <FileTextIcon className="mr-2 size-4" />
                 {t("ocr.exportMd")} (.md)
               </DropdownMenuItem>
               {isMineru && (
                 <>
-                  <DropdownMenuItem onClick={() => handleExportMineruFormat("html")}>
-                    <FileTextIcon className="size-4 mr-2" />
+                  <DropdownMenuItem
+                    onClick={() => handleExportMineruFormat("html")}
+                  >
+                    <FileTextIcon className="mr-2 size-4" />
                     {t("ocr.exportHtml")} (.html)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExportMineruFormat("latex")}>
-                    <FileTextIcon className="size-4 mr-2" />
+                  <DropdownMenuItem
+                    onClick={() => handleExportMineruFormat("latex")}
+                  >
+                    <FileTextIcon className="mr-2 size-4" />
                     {t("ocr.exportLatex")} (.tex)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExportMineruFormat("docx")}>
-                    <FileTextIcon className="size-4 mr-2" />
+                  <DropdownMenuItem
+                    onClick={() => handleExportMineruFormat("docx")}
+                  >
+                    <FileTextIcon className="mr-2 size-4" />
                     {t("ocr.exportDocx")} (.docx)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExportMineruFormat("json")}>
-                    <FileTextIcon className="size-4 mr-2" />
+                  <DropdownMenuItem
+                    onClick={() => handleExportMineruFormat("json")}
+                  >
+                    <FileTextIcon className="mr-2 size-4" />
                     {t("ocr.exportJson")} (.json)
                   </DropdownMenuItem>
                 </>
@@ -703,8 +765,13 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <Button onClick={handleClear} variant="ghost" size="sm" disabled={!hasItems}>
-          <Trash2Icon className="size-4 mr-1" />
+        <Button
+          onClick={handleClear}
+          variant="ghost"
+          size="sm"
+          disabled={!hasItems}
+        >
+          <Trash2Icon className="mr-1 size-4" />
           {t("ocr.clear")}
         </Button>
         {flashMessage && (
@@ -716,18 +783,20 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
 
       {/* Model not installed warning */}
       {!modelInstalled && !isMineru && (
-        <div className="p-3 border border-amber-200 rounded-lg bg-amber-50 dark:bg-amber-950 dark:border-amber-800 flex items-start gap-2">
-          <AlertTriangleIcon className="size-4 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
+          <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
           <p className="text-sm text-amber-700 dark:text-amber-300">
-            {t("ocr.modelNotInstalled", { model: MODEL_DISPLAY[activeModel] ?? activeModel })}
+            {t("ocr.modelNotInstalled", {
+              model: MODEL_DISPLAY[activeModel] ?? activeModel,
+            })}
           </p>
         </div>
       )}
 
       {/* MinerU no-token notice */}
       {isMineru && !hasMineruToken && (
-        <div className="p-3 border border-blue-200 rounded-lg bg-blue-50 dark:bg-blue-950 dark:border-blue-800 flex items-start gap-2">
-          <CloudIcon className="size-4 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+        <div className="flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-950">
+          <CloudIcon className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
           <p className="text-sm text-blue-700 dark:text-blue-300">
             {t("ocr.mineruNoToken")}
           </p>
@@ -738,18 +807,22 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
         /* Idle state: drag-and-drop zone */
         <Card
           className={`border-2 border-dashed transition-colors ${
-            isDragOver ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+            isDragOver
+              ? "border-primary bg-primary/5"
+              : "border-muted-foreground/25"
           }`}
         >
-          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+          <CardContent className="flex flex-col items-center justify-center gap-4 py-16">
             <ImageIcon className="size-16 text-muted-foreground" />
-            <div className="text-center space-y-2">
+            <div className="space-y-2 text-center">
               <p className="text-lg font-medium">{t("ocr.dropImages")}</p>
-              <p className="text-sm text-muted-foreground">{t("ocr.clickOrDrag")}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("ocr.clickOrDrag")}
+              </p>
               <p className="text-xs text-muted-foreground">{t("ocr.desc")}</p>
             </div>
             <Button onClick={handleOpenFile} variant="default">
-              <UploadIcon className="size-4 mr-1" />
+              <UploadIcon className="mr-1 size-4" />
               {t("ocr.selectImage")}
             </Button>
           </CardContent>
@@ -758,273 +831,395 @@ export function OCRPage({ onScreenshotTrigger }: OCRPageProps) {
         /* Batch items list */
         <div className="space-y-2">
           {items.map((item, idx) => {
-            const totalInBatch = batchProgress.total || items.filter((i) => i.state === "loading" || i.state === "completed" || i.state === "error").length
-            const doneCount = items.filter((i) => i.state === "completed" || i.state === "error").length
+            const totalInBatch =
+              batchProgress.total ||
+              items.filter(
+                (i) =>
+                  i.state === "loading" ||
+                  i.state === "completed" ||
+                  i.state === "error"
+              ).length
+            const doneCount = items.filter(
+              (i) => i.state === "completed" || i.state === "error"
+            ).length
             let progressPct = 0
             if (item.state === "completed" || item.state === "error") {
               progressPct = 100
             } else if (item.state === "loading") {
-              progressPct = totalInBatch > 0 ? Math.round(((doneCount + 0.5) / totalInBatch) * 100) : 0
+              progressPct =
+                totalInBatch > 0
+                  ? Math.round(((doneCount + 0.5) / totalInBatch) * 100)
+                  : 0
             } else {
-              progressPct = totalInBatch > 0 ? Math.round((doneCount / totalInBatch) * 100) : 0
+              progressPct =
+                totalInBatch > 0
+                  ? Math.round((doneCount / totalInBatch) * 100)
+                  : 0
             }
 
             return (
-            <Card key={idx} className={expandedIdx === idx ? "ring-1 ring-primary/30" : ""}>
-              {/* Item header - always visible */}
-              <div
-                className="flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/30 transition-colors"
-                onClick={() => setExpandedIdx(expandedIdx === idx ? -1 : idx)}
+              <Card
+                key={idx}
+                className={expandedIdx === idx ? "ring-1 ring-primary/30" : ""}
               >
-                {expandedIdx === idx ? (
-                  <ChevronDownIcon className="size-4 text-muted-foreground shrink-0" />
-                ) : (
-                  <ChevronRightIcon className="size-4 text-muted-foreground shrink-0" />
-                )}
+                {/* Item header - always visible */}
+                <div
+                  className="flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-accent/30"
+                  onClick={() => setExpandedIdx(expandedIdx === idx ? -1 : idx)}
+                >
+                  {expandedIdx === idx ? (
+                    <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                  )}
 
-                {/* Thumbnail */}
-                {item.imageUrl && (
-                  <div className="size-10 rounded border bg-muted overflow-hidden shrink-0">
-                    <img
-                      src={item.imageUrl}
-                      alt=""
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
+                  {/* Thumbnail */}
+                  {item.imageUrl && (
+                    <div className="size-10 shrink-0 overflow-hidden rounded border bg-muted">
+                      <img
+                        src={item.imageUrl}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  )}
 
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.fileName}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {item.state === "loading" && (
-                      <div className="w-full space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5">
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary shrink-0" />
-                            <span className="text-xs text-muted-foreground">{t("ocr.processing")}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {item.fileName}
+                    </p>
+                    <div className="mt-0.5 flex items-center gap-2">
+                      {item.state === "loading" && (
+                        <div className="w-full space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <div className="h-3 w-3 shrink-0 animate-spin rounded-full border-b-2 border-primary" />
+                              <span className="text-xs text-muted-foreground">
+                                {t("ocr.processing")}
+                              </span>
+                            </div>
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {progressPct}% · {doneCount + 1}/{totalInBatch}
+                            </span>
                           </div>
-                          <span className="text-xs text-muted-foreground tabular-nums">
-                            {progressPct}% · {doneCount + 1}/{totalInBatch}
+                          <Progress value={progressPct} className="h-1.5" />
+                        </div>
+                      )}
+                      {item.state === "completed" && item.result && (
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircleIcon className="size-3 text-green-600 dark:text-green-400" />
+                          <span className="text-xs text-muted-foreground">
+                            {t("ocr.textBlocks", {
+                              count: item.result.textBlocks.length,
+                            })}
+                            {" · "}
+                            {(item.result.totalTimeMs / 1000).toFixed(1)}s
                           </span>
                         </div>
-                        <Progress value={progressPct} className="h-1.5" />
-                      </div>
-                    )}
-                    {item.state === "completed" && item.result && (
-                      <div className="flex items-center gap-1.5">
-                        <CheckCircleIcon className="size-3 text-green-600 dark:text-green-400" />
-                        <span className="text-xs text-muted-foreground">
-                          {t("ocr.textBlocks", { count: item.result.textBlocks.length })}
-                          {" · "}
-                          {(item.result.totalTimeMs / 1000).toFixed(1)}s
-                        </span>
-                      </div>
-                    )}
-                    {item.state === "error" && (
-                      <div className="flex items-center gap-1.5">
-                        <XCircleIcon className="size-3 text-red-500" />
-                        <span className="text-xs text-red-500 truncate">{item.error}</span>
-                      </div>
-                    )}
-                    {item.state === "idle" && (
-                      <span className="text-xs text-muted-foreground">{t("ocr.pending")}</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 shrink-0">
-                  {item.state === "completed" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleCopyItemText(item)
-                      }}
-                      title={t("ocr.copyText")}
-                    >
-                      <CopyIcon className="size-3.5" />
-                    </Button>
-                  )}
-                  {!batchProcessing && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-7"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleRemoveItem(idx)
-                      }}
-                      title={t("ocr.clear")}
-                    >
-                      <XCircleIcon className="size-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Expanded detail */}
-              {expandedIdx === idx && (
-                <CardContent className="pt-0 pb-3">
-                  <Separator className="mb-3" />
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    {/* Image preview */}
-                    {item.imageUrl && (
-                      <div className="relative rounded-lg overflow-hidden bg-muted">
-                        <img
-                          src={item.imageUrl}
-                          alt="Preview"
-                          className="max-w-full max-h-[300px] object-contain mx-auto"
-                        />
-                      </div>
-                    )}
-
-                    {/* OCR result */}
-                    <div>
-                      {item.state === "loading" && (
-                        <div className="flex flex-col items-center justify-center py-8 gap-2">
-                          <Progress value={progressPct} className="h-2 w-48" />
-                          <div className="text-xs text-muted-foreground tabular-nums">
-                            {progressPct}% · {doneCount + 1}/{totalInBatch}
-                          </div>
-                        </div>
                       )}
-
-                      {item.state === "completed" && item.result && (
-                        <div className="space-y-2">
-                          {item.result.textBlocks.length === 0 ? (
-                            <p className="text-sm text-muted-foreground text-center py-4">
-                              {t("ocr.noTextFound")}
-                            </p>
-                          ) : (
-                            <>
-                              {/* MinerU HTML preview */}
-                              {item.result.format === "html" && (
-                                <div className="max-h-[300px] overflow-y-auto rounded-lg border bg-white dark:bg-gray-900">
-                                  <iframe
-                                    srcDoc={item.result.textBlocks[0]?.text || ""}
-                                    className="w-full h-[300px] border-0"
-                                    title="HTML Preview"
-                                    sandbox="allow-scripts"
-                                  />
-                                </div>
-                              )}
-
-                              {/* MinerU LaTeX view */}
-                              {item.result.format === "latex" && (
-                                <div className="max-h-[250px] overflow-y-auto p-3 rounded-lg border bg-muted/30">
-                                  <pre className="text-xs font-mono whitespace-pre-wrap break-all">
-                                    {item.result.textBlocks[0]?.text}
-                                  </pre>
-                                </div>
-                              )}
-
-                              {/* MinerU DOCX notice */}
-                              {item.result.format === "docx" && (
-                                <div className="p-3 rounded-lg border bg-muted/30 text-center">
-                                  <p className="text-sm text-muted-foreground">
-                                    {t("ocr.exportDocx")} — {t("ocr.mineruFormat")}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    DOCX is a binary format. Save to file to view.
-                                  </p>
-                                </div>
-                              )}
-
-                              {/* MinerU JSON view */}
-                              {item.result.format === "json" && (
-                                <div className="max-h-[250px] overflow-y-auto p-3 rounded-lg border bg-muted/30">
-                                  <pre className="text-xs font-mono whitespace-pre-wrap break-all">
-                                    {(() => {
-                                      try {
-                                        return JSON.stringify(JSON.parse(item.result.textBlocks[0]?.text || ""), null, 2)
-                                      } catch {
-                                        return item.result.textBlocks[0]?.text
-                                      }
-                                    })()}
-                                  </pre>
-                                </div>
-                              )}
-
-                              {/* Default: plain text/markdown view (PaddleOCR or MinerU md) */}
-                              {(!item.result.format || item.result.format === "md") && (
-                                <>
-                                  {/* View mode toggle */}
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      variant={viewModes[idx] === "markdown" ? "ghost" : "secondary"}
-                                      size="sm"
-                                      className="h-7 text-xs"
-                                      onClick={() => setViewModes(prev => ({ ...prev, [idx]: "plain" }))}
-                                    >
-                                      <AlignLeftIcon className="size-3.5 mr-1" />
-                                      {t("ocr.viewPlain")}
-                                    </Button>
-                                    <Button
-                                      variant={viewModes[idx] === "markdown" ? "secondary" : "ghost"}
-                                      size="sm"
-                                      className="h-7 text-xs"
-                                      onClick={() => setViewModes(prev => ({ ...prev, [idx]: "markdown" }))}
-                                    >
-                                      <EyeIcon className="size-3.5 mr-1" />
-                                      {t("ocr.viewMarkdown")}
-                                    </Button>
-                                  </div>
-
-                                  {/* Plain text view */}
-                                  {viewModes[idx] !== "markdown" && (
-                                    <div className="space-y-1.5 max-h-[250px] overflow-y-auto">
-                                      {item.result.textBlocks.map((block, bIdx) => (
-                                        <div
-                                          key={bIdx}
-                                          className="p-2 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
-                                        >
-                                          <div className="flex items-start justify-between gap-2">
-                                            <p className="text-sm leading-relaxed break-all">
-                                              {block.text}
-                                            </p>
-                                            <Badge variant="secondary" className="shrink-0 text-xs">
-                                              {(block.confidence * 100).toFixed(1)}%
-                                            </Badge>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {/* Markdown preview */}
-                                  {viewModes[idx] === "markdown" && (
-                                    <div className="max-h-[250px] overflow-y-auto p-3 rounded-lg border bg-muted/30">
-                                      <div className="prose prose-sm dark:prose-invert max-w-none [&_p]:leading-relaxed [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_code]:text-xs [&_pre]:text-xs [&_table]:text-xs [&_blockquote]:text-xs">
-                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                          {item.result.textBlocks.map((b) => b.text).join("\n\n")}
-                                        </ReactMarkdown>
-                                      </div>
-                                    </div>
-                                  )}
-                                </>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      )}
-
                       {item.state === "error" && (
-                        <p className="text-sm text-red-600 dark:text-red-400 py-4">{item.error}</p>
+                        <div className="flex items-center gap-1.5">
+                          <XCircleIcon className="size-3 text-red-500" />
+                          <span className="truncate text-xs text-red-500">
+                            {item.error}
+                          </span>
+                        </div>
                       )}
-
                       {item.state === "idle" && (
-                        <p className="text-sm text-muted-foreground text-center py-4">
+                        <span className="text-xs text-muted-foreground">
                           {t("ocr.pending")}
-                        </p>
+                        </span>
                       )}
                     </div>
                   </div>
-                </CardContent>
-              )}
-            </Card>
+
+                  {/* Actions */}
+                  <div className="flex shrink-0 items-center gap-1">
+                    {item.state === "completed" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCopyItemText(item)
+                        }}
+                        title={t("ocr.copyText")}
+                      >
+                        <CopyIcon className="size-3.5" />
+                      </Button>
+                    )}
+                    {!batchProcessing && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-7"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleRemoveItem(idx)
+                        }}
+                        title={t("ocr.clear")}
+                      >
+                        <XCircleIcon className="size-3.5" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded detail */}
+                {expandedIdx === idx && (
+                  <CardContent className="pt-0 pb-3">
+                    <Separator className="mb-3" />
+                    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                      {/* Image preview */}
+                      {item.imageUrl && (
+                        <div className="relative overflow-hidden rounded-lg bg-muted">
+                          <img
+                            src={item.imageUrl}
+                            alt="Preview"
+                            className="mx-auto max-h-[300px] max-w-full object-contain"
+                          />
+                        </div>
+                      )}
+
+                      {/* OCR result */}
+                      <div>
+                        {item.state === "loading" && (
+                          <div className="flex flex-col items-center justify-center gap-2 py-8">
+                            <Progress
+                              value={progressPct}
+                              className="h-2 w-48"
+                            />
+                            <div className="text-xs text-muted-foreground tabular-nums">
+                              {progressPct}% · {doneCount + 1}/{totalInBatch}
+                            </div>
+                          </div>
+                        )}
+
+                        {item.state === "completed" && item.result && (
+                          <div className="space-y-2">
+                            {item.result.textBlocks.length === 0 ? (
+                              <p className="py-4 text-center text-sm text-muted-foreground">
+                                {t("ocr.noTextFound")}
+                              </p>
+                            ) : (
+                              <>
+                                {/* MinerU HTML preview */}
+                                {item.result.format === "html" && (
+                                  <div className="max-h-[300px] overflow-y-auto rounded-lg border bg-white dark:bg-gray-900">
+                                    <iframe
+                                      srcDoc={
+                                        item.result.textBlocks[0]?.text || ""
+                                      }
+                                      className="h-[300px] w-full border-0"
+                                      title="HTML Preview"
+                                      sandbox="allow-scripts"
+                                    />
+                                  </div>
+                                )}
+
+                                {/* MinerU LaTeX view */}
+                                {item.result.format === "latex" && (
+                                  <div className="max-h-[250px] overflow-y-auto rounded-lg border bg-muted/30 p-3">
+                                    <pre className="font-mono text-xs break-all whitespace-pre-wrap">
+                                      {item.result.textBlocks[0]?.text}
+                                    </pre>
+                                  </div>
+                                )}
+
+                                {/* MinerU DOCX notice */}
+                                {item.result.format === "docx" && (
+                                  <div className="rounded-lg border bg-muted/30 p-3 text-center">
+                                    <p className="text-sm text-muted-foreground">
+                                      {t("ocr.exportDocx")} —{" "}
+                                      {t("ocr.mineruFormat")}
+                                    </p>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      DOCX is a binary format. Save to file to
+                                      view.
+                                    </p>
+                                  </div>
+                                )}
+
+                                {/* MinerU JSON view */}
+                                {item.result.format === "json" && (
+                                  <div className="max-h-[250px] overflow-y-auto rounded-lg border bg-muted/30 p-3">
+                                    <pre className="font-mono text-xs break-all whitespace-pre-wrap">
+                                      {(() => {
+                                        try {
+                                          return JSON.stringify(
+                                            JSON.parse(
+                                              item.result.textBlocks[0]?.text ||
+                                                ""
+                                            ),
+                                            null,
+                                            2
+                                          )
+                                        } catch {
+                                          return item.result.textBlocks[0]?.text
+                                        }
+                                      })()}
+                                    </pre>
+                                  </div>
+                                )}
+
+                                {/* Default: plain text/markdown view (PaddleOCR or MinerU md) */}
+                                {(!item.result.format ||
+                                  item.result.format === "md") && (
+                                  <>
+                                    {item.result.format === "md" ? (
+                                      // MinerU markdown: always render preview with math + table support
+                                      <div className="max-h-[350px] overflow-y-auto rounded-lg border bg-background p-3">
+                                        <div className="
+                                          text-sm leading-relaxed
+                                          [&_h1]:mb-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-bold
+                                          [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold
+                                          [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-medium
+                                          [&_p]:my-1.5 [&_p]:leading-relaxed
+                                          [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:text-xs
+                                          [&_code]:rounded [&_code]:bg-muted/50 [&_code]:px-1 [&_code]:text-xs [&_code]:font-mono
+                                          [&_pre_code]:bg-transparent [&_pre_code]:p-0
+                                          [&_table]:my-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs
+                                          [&_thead]:border-b [&_thead]:border-border
+                                          [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-2 [&_th]:text-left [&_th]:font-medium
+                                          [&_td]:border [&_td]:border-border [&_td]:p-2
+                                          [&_tr]:border-b [&_tr]:border-border
+                                          [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_blockquote]:text-xs
+                                          [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5
+                                          [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5
+                                          [&_li]:my-0.5
+                                          [&_a]:text-primary [&_a]:underline
+                                          [&_hr]:my-3 [&_hr]:border-border
+                                          [&_img]:max-w-full [&_img]:rounded
+                                          ui-selectable
+                                        ">
+                                          <ReactMarkdown
+                                            remarkPlugins={[
+                                              remarkGfm,
+                                              remarkMath,
+                                            ]}
+                                            rehypePlugins={[rehypeKatex]}
+                                          >
+                                            {item.result.textBlocks
+                                              .map((b) => b.text)
+                                              .join("\n\n")}
+                                          </ReactMarkdown>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        {/* View mode toggle */}
+                                        <div className="flex items-center gap-1">
+                                          <Button
+                                            variant={
+                                              viewModes[idx] === "markdown"
+                                                ? "ghost"
+                                                : "secondary"
+                                            }
+                                            size="sm"
+                                            className="h-7 text-xs"
+                                            onClick={() =>
+                                              setViewModes((prev) => ({
+                                                ...prev,
+                                                [idx]: "plain",
+                                              }))
+                                            }
+                                          >
+                                            <AlignLeftIcon className="mr-1 size-3.5" />
+                                            {t("ocr.viewPlain")}
+                                          </Button>
+                                          <Button
+                                            variant={
+                                              viewModes[idx] === "markdown"
+                                                ? "secondary"
+                                                : "ghost"
+                                            }
+                                            size="sm"
+                                            className="h-7 text-xs"
+                                            onClick={() =>
+                                              setViewModes((prev) => ({
+                                                ...prev,
+                                                [idx]: "markdown",
+                                              }))
+                                            }
+                                          >
+                                            <EyeIcon className="mr-1 size-3.5" />
+                                            {t("ocr.viewMarkdown")}
+                                          </Button>
+                                        </div>
+
+                                        {/* Plain text view */}
+                                        {viewModes[idx] !== "markdown" && (
+                                          <div className="max-h-[250px] space-y-1.5 overflow-y-auto">
+                                            {item.result.textBlocks.map(
+                                              (block, bIdx) => (
+                                                <div
+                                                  key={bIdx}
+                                                  className="rounded-lg border bg-muted/30 p-2 transition-colors hover:bg-muted/50"
+                                                >
+                                                  <div className="flex items-start justify-between gap-2">
+                                                    <p className="text-sm leading-relaxed break-all">
+                                                      {block.text}
+                                                    </p>
+                                                    <Badge
+                                                      variant="secondary"
+                                                      className="shrink-0 text-xs"
+                                                    >
+                                                      {(
+                                                        block.confidence * 100
+                                                      ).toFixed(1)}
+                                                      %
+                                                    </Badge>
+                                                  </div>
+                                                </div>
+                                              )
+                                            )}
+                                          </div>
+                                        )}
+
+                                        {/* Markdown preview */}
+                                        {viewModes[idx] === "markdown" && (
+                                          <div className="max-h-[250px] overflow-y-auto rounded-lg border bg-background p-3">
+                                            <div className="text-sm leading-relaxed [&_h1]:mb-2 [&_h1]:mt-4 [&_h1]:text-lg [&_h1]:font-bold [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:text-sm [&_h3]:font-medium [&_p]:my-1.5 [&_p]:leading-relaxed [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-muted [&_pre]:p-2 [&_pre]:text-xs [&_code]:rounded [&_code]:bg-muted/50 [&_code]:px-1 [&_code]:text-xs [&_code]:font-mono [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_table]:my-2 [&_table]:w-full [&_table]:border-collapse [&_table]:text-xs [&_th]:border [&_th]:border-border [&_th]:bg-muted/50 [&_th]:p-2 [&_th]:text-left [&_th]:font-medium [&_td]:border [&_td]:border-border [&_td]:p-2 [&_tr]:border-b [&_tr]:border-border [&_blockquote]:my-2 [&_blockquote]:border-l-2 [&_blockquote]:border-muted-foreground/30 [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground [&_blockquote]:text-xs [&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 [&_a]:text-primary [&_a]:underline [&_hr]:my-3 [&_hr]:border-border [&_img]:max-w-full [&_img]:rounded ui-selectable">
+                                              <ReactMarkdown
+                                                remarkPlugins={[
+                                                  remarkGfm,
+                                                  remarkMath,
+                                                ]}
+                                                rehypePlugins={[rehypeKatex]}
+                                              >
+                                                {item.result.textBlocks
+                                                  .map((b) => b.text)
+                                                  .join("\n\n")}
+                                              </ReactMarkdown>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {item.state === "error" && (
+                          <p className="py-4 text-sm text-red-600 dark:text-red-400">
+                            {item.error}
+                          </p>
+                        )}
+
+                        {item.state === "idle" && (
+                          <p className="py-4 text-center text-sm text-muted-foreground">
+                            {t("ocr.pending")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
             )
           })}
         </div>

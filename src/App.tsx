@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
-import {
-  SidebarInset,
-  SidebarProvider,
-} from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { SiteHeader } from "@/components/site-header"
 import { AppProvider } from "@/lib/app-context"
@@ -12,21 +9,40 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import type { AppConfig } from "@/types"
 
 // Lazy-load pages to reduce initial memory usage
-const OCRPage = lazy(() => import("@/app/ocr/page").then(m => ({ default: m.OCRPage })))
-const SettingsPage = lazy(() => import("@/app/settings/page").then(m => ({ default: m.SettingsPage })))
-const ModelSettingsPage = lazy(() => import("@/app/settings/model-settings").then(m => ({ default: m.ModelSettingsPage })))
-const ApiSettingsPage = lazy(() => import("@/app/api-settings/page").then(m => ({ default: m.ApiSettingsPage })))
-const AboutPage = lazy(() => import("@/app/about/page").then(m => ({ default: m.AboutPage })))
+const OCRPage = lazy(() =>
+  import("@/app/ocr/page").then((m) => ({ default: m.OCRPage }))
+)
+const SettingsPage = lazy(() =>
+  import("@/app/settings/page").then((m) => ({ default: m.SettingsPage }))
+)
+const ModelSettingsPage = lazy(() =>
+  import("@/app/settings/model-settings").then((m) => ({
+    default: m.ModelSettingsPage,
+  }))
+)
+const ApiSettingsPage = lazy(() =>
+  import("@/app/api-settings/page").then((m) => ({
+    default: m.ApiSettingsPage,
+  }))
+)
+const AboutPage = lazy(() =>
+  import("@/app/about/page").then((m) => ({ default: m.AboutPage }))
+)
 
 function PageFallback() {
   return (
     <div className="flex items-center justify-center py-16">
-      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-primary" />
     </div>
   )
 }
 
-export type Page = "ocr" | "settings" | "model-settings" | "api-settings" | "about"
+export type Page =
+  | "ocr"
+  | "settings"
+  | "model-settings"
+  | "api-settings"
+  | "about"
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("ocr")
@@ -113,7 +129,9 @@ export default function App() {
         // keep current
       }
 
-      await invoke("start_screenshot_selection", { modelVersion: ocrModelVersionRef.current })
+      await invoke("start_screenshot_selection", {
+        modelVersion: ocrModelVersionRef.current,
+      })
     } catch (err) {
       console.error("Screenshot capture failed:", err)
     }
@@ -132,7 +150,11 @@ export default function App() {
           timeMs: number
           croppedImagePath?: string
           ocrResult?: {
-            textBlocks: Array<{ text: string; confidence: number; boxPoints: unknown }>
+            textBlocks: Array<{
+              text: string
+              confidence: number
+              boxPoints: unknown
+            }>
             totalTimeMs: number
           }
         }>("screenshot-ocr-result", (event) => {
@@ -225,7 +247,7 @@ export default function App() {
             <SiteHeader currentPage={currentPage} />
             <div className="flex flex-1 flex-col overflow-hidden">
               <div className="@container/main flex flex-1 flex-col gap-2 overflow-hidden">
-                <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6 overflow-y-auto">
+                <div className="flex flex-col gap-4 overflow-y-auto py-4 md:gap-6 md:py-6">
                   {renderPage()}
                 </div>
               </div>

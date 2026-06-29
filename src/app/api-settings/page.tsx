@@ -1,10 +1,22 @@
 import { useState, useEffect, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { NetworkIcon, PlayIcon, SquareIcon, EyeIcon, EyeOffIcon } from "lucide-react"
+import {
+  NetworkIcon,
+  PlayIcon,
+  SquareIcon,
+  EyeIcon,
+  EyeOffIcon,
+} from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { useAppContext } from "@/lib/app-context"
 import type { AppConfig } from "@/types"
@@ -17,7 +29,10 @@ interface ServerStatus {
 export function ApiSettingsPage() {
   const { t } = useAppContext()
   const [config, setConfig] = useState<AppConfig | null>(null)
-  const [serverStatus, setServerStatus] = useState<ServerStatus>({ running: false, port: 9720 })
+  const [serverStatus, setServerStatus] = useState<ServerStatus>({
+    running: false,
+    port: 9720,
+  })
   const [saved, setSaved] = useState(false)
   const [showApiKey, setShowApiKey] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -75,14 +90,14 @@ export function ApiSettingsPage() {
   if (!config) {
     return (
       <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+        <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-primary" />
       </div>
     )
   }
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4">
-      <div className="flex items-center gap-2 mb-6">
+      <div className="mb-6 flex items-center gap-2">
         <NetworkIcon className="size-5 text-muted-foreground" />
         <div>
           <h2 className="text-lg font-semibold">{t("api.title")}</h2>
@@ -103,8 +118,12 @@ export function ApiSettingsPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4">
-              <div className={`flex items-center gap-2 ${serverStatus.running ? "text-green-600" : "text-muted-foreground"}`}>
-                <div className={`size-2.5 rounded-full ${serverStatus.running ? "bg-green-500 animate-pulse" : "bg-gray-400"}`} />
+              <div
+                className={`flex items-center gap-2 ${serverStatus.running ? "text-green-600" : "text-muted-foreground"}`}
+              >
+                <div
+                  className={`size-2.5 rounded-full ${serverStatus.running ? "animate-pulse bg-green-500" : "bg-gray-400"}`}
+                />
                 <span className="text-sm font-medium">
                   {serverStatus.running ? t("api.running") : t("api.stopped")}
                 </span>
@@ -116,9 +135,15 @@ export function ApiSettingsPage() {
                 disabled={loading}
               >
                 {serverStatus.running ? (
-                  <><SquareIcon className="size-4 mr-1" />{t("api.stop")}</>
+                  <>
+                    <SquareIcon className="mr-1 size-4" />
+                    {t("api.stop")}
+                  </>
                 ) : (
-                  <><PlayIcon className="size-4 mr-1" />{t("api.start")}</>
+                  <>
+                    <PlayIcon className="mr-1 size-4" />
+                    {t("api.start")}
+                  </>
                 )}
               </Button>
             </div>
@@ -128,7 +153,9 @@ export function ApiSettingsPage() {
         {/* Configuration Card */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("api.configuration")}</CardTitle>
+            <CardTitle className="text-base">
+              {t("api.configuration")}
+            </CardTitle>
             <CardDescription>{t("api.configDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -141,7 +168,12 @@ export function ApiSettingsPage() {
                 min={1024}
                 max={65535}
                 value={config.apiServerPort || 9720}
-                onChange={(e) => setConfig({ ...config, apiServerPort: parseInt(e.target.value) || 9720 })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    apiServerPort: parseInt(e.target.value) || 9720,
+                  })
+                }
                 className="max-w-[200px]"
               />
             </div>
@@ -149,12 +181,14 @@ export function ApiSettingsPage() {
             {/* API Key */}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="api-key">{t("api.key")}</Label>
-              <div className="flex gap-2 max-w-[400px]">
+              <div className="flex max-w-[400px] gap-2">
                 <Input
                   id="api-key"
                   type={showApiKey ? "text" : "password"}
                   value={config.apiKey || ""}
-                  onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
+                  onChange={(e) =>
+                    setConfig({ ...config, apiKey: e.target.value })
+                  }
                   placeholder={t("api.keyPlaceholder")}
                 />
                 <Button
@@ -163,10 +197,16 @@ export function ApiSettingsPage() {
                   onClick={() => setShowApiKey(!showApiKey)}
                   title={showApiKey ? t("api.hideKey") : t("api.showKey")}
                 >
-                  {showApiKey ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                  {showApiKey ? (
+                    <EyeOffIcon className="size-4" />
+                  ) : (
+                    <EyeIcon className="size-4" />
+                  )}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">{t("api.keyHint")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("api.keyHint")}
+              </p>
             </div>
 
             {/* Max File Size */}
@@ -178,22 +218,33 @@ export function ApiSettingsPage() {
                 min={1}
                 max={500}
                 value={config.maxFileSizeMb || 20}
-                onChange={(e) => setConfig({ ...config, maxFileSizeMb: parseInt(e.target.value) || 20 })}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    maxFileSizeMb: parseInt(e.target.value) || 20,
+                  })
+                }
                 className="max-w-[200px]"
               />
-              <p className="text-xs text-muted-foreground">{t("api.maxFileSizeHint")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("api.maxFileSizeHint")}
+              </p>
             </div>
 
             {/* Auto-start */}
             <div className="flex items-center justify-between">
               <div>
                 <Label htmlFor="api-auto-start">{t("api.autoStart")}</Label>
-                <p className="text-xs text-muted-foreground">{t("api.autoStartHint")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("api.autoStartHint")}
+                </p>
               </div>
               <Switch
                 id="api-auto-start"
                 checked={config.apiServerAutoStart || false}
-                onCheckedChange={(checked) => setConfig({ ...config, apiServerAutoStart: checked })}
+                onCheckedChange={(checked) =>
+                  setConfig({ ...config, apiServerAutoStart: checked })
+                }
               />
             </div>
           </CardContent>
@@ -208,63 +259,90 @@ export function ApiSettingsPage() {
           <CardContent>
             <div className="flex flex-col gap-3">
               <div>
-                <p className="text-xs font-medium mb-1">{t("api.healthCheck")}</p>
-                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
-                  curl http://localhost:{config.apiServerPort || 9720}/api/v1/health
+                <p className="mb-1 text-xs font-medium">
+                  {t("api.healthCheck")}
+                </p>
+                <code className="block rounded bg-muted p-2 font-mono text-xs break-all">
+                  curl http://localhost:{config.apiServerPort || 9720}
+                  /api/v1/health
                 </code>
               </div>
               <div>
-                <p className="text-xs font-medium mb-1">{t("api.ocrCurl")}</p>
-                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
-                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
+                <p className="mb-1 text-xs font-medium">{t("api.ocrCurl")}</p>
+                <code className="block rounded bg-muted p-2 font-mono text-xs break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}
+                  /api/v1/ocr \<br />
                   &nbsp;&nbsp;-F &quot;image=@/path/to/image.png&quot;
                 </code>
                 {config.apiKey && (
-                  <code className="block bg-muted p-2 rounded text-xs font-mono break-all mt-1">
-                    curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
-                    &nbsp;&nbsp;-H &quot;Authorization: Bearer {config.apiKey}&quot; \<br/>
+                  <code className="mt-1 block rounded bg-muted p-2 font-mono text-xs break-all">
+                    curl -X POST http://localhost:{config.apiServerPort || 9720}
+                    /api/v1/ocr \<br />
+                    &nbsp;&nbsp;-H &quot;Authorization: Bearer {config.apiKey}
+                    &quot; \<br />
                     &nbsp;&nbsp;-F &quot;image=@/path/to/image.png&quot;
                   </code>
                 )}
               </div>
               <div>
-                <p className="text-xs font-medium mb-1">{t("api.base64Curl")}</p>
-                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
-                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
-                  &nbsp;&nbsp;-H &quot;Content-Type: application/json&quot; \<br/>
-                  &nbsp;&nbsp;-d &apos;{'{'}&quot;image&quot;: &quot;base64...&quot;{'}'}&apos;
+                <p className="mb-1 text-xs font-medium">
+                  {t("api.base64Curl")}
+                </p>
+                <code className="block rounded bg-muted p-2 font-mono text-xs break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}
+                  /api/v1/ocr \<br />
+                  &nbsp;&nbsp;-H &quot;Content-Type: application/json&quot; \
+                  <br />
+                  &nbsp;&nbsp;-d &apos;{"{"}&quot;image&quot;:
+                  &quot;base64...&quot;{"}"}&apos;
                 </code>
               </div>
               <div>
-                <p className="text-xs font-medium mb-1">{t("api.urlCurl")}</p>
-                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
-                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
-                  &nbsp;&nbsp;-H &quot;Content-Type: application/json&quot; \<br/>
-                  &nbsp;&nbsp;-d &apos;{'{'}&quot;url&quot;: &quot;https://example.com/image.png&quot;{'}'}&apos;
+                <p className="mb-1 text-xs font-medium">{t("api.urlCurl")}</p>
+                <code className="block rounded bg-muted p-2 font-mono text-xs break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}
+                  /api/v1/ocr \<br />
+                  &nbsp;&nbsp;-H &quot;Content-Type: application/json&quot; \
+                  <br />
+                  &nbsp;&nbsp;-d &apos;{"{"}&quot;url&quot;:
+                  &quot;https://example.com/image.png&quot;{"}"}&apos;
                 </code>
               </div>
               <div>
-                <p className="text-xs font-medium mb-1">{t("api.specifyModel")}</p>
-                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
-                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
-                  &nbsp;&nbsp;-F &quot;image=@/path/to/image.png&quot; \<br/>
+                <p className="mb-1 text-xs font-medium">
+                  {t("api.specifyModel")}
+                </p>
+                <code className="block rounded bg-muted p-2 font-mono text-xs break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}
+                  /api/v1/ocr \<br />
+                  &nbsp;&nbsp;-F &quot;image=@/path/to/image.png&quot; \<br />
                   &nbsp;&nbsp;-F &quot;model=ppocr-v5&quot;
                 </code>
               </div>
               <div>
-                <p className="text-xs font-medium mb-1">{t("api.mineruCurl")}</p>
-                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
-                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
-                  &nbsp;&nbsp;-F &quot;image=@/path/to/file.png&quot; \<br/>
+                <p className="mb-1 text-xs font-medium">
+                  {t("api.mineruCurl")}
+                </p>
+                <code className="block rounded bg-muted p-2 font-mono text-xs break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}
+                  /api/v1/ocr \<br />
+                  &nbsp;&nbsp;-F &quot;image=@/path/to/file.png&quot; \<br />
                   &nbsp;&nbsp;-F &quot;model=mineru&quot;
                 </code>
               </div>
               <div>
-                <p className="text-xs font-medium mb-1">{t("api.mineruExtractCurl")}</p>
-                <code className="block bg-muted p-2 rounded text-xs font-mono break-all">
-                  curl -X POST http://localhost:{config.apiServerPort || 9720}/api/v1/ocr \<br/>
-                  &nbsp;&nbsp;-H &quot;Content-Type: application/json&quot; \<br/>
-                  &nbsp;&nbsp;-d &apos;{'{'}&quot;image&quot;: &quot;base64...&quot;, &quot;model&quot;: &quot;mineru&quot;, &quot;format&quot;: &quot;html&quot;, &quot;mineru_mode&quot;: &quot;extract&quot;{'}'}&apos;
+                <p className="mb-1 text-xs font-medium">
+                  {t("api.mineruExtractCurl")}
+                </p>
+                <code className="block rounded bg-muted p-2 font-mono text-xs break-all">
+                  curl -X POST http://localhost:{config.apiServerPort || 9720}
+                  /api/v1/ocr \<br />
+                  &nbsp;&nbsp;-H &quot;Content-Type: application/json&quot; \
+                  <br />
+                  &nbsp;&nbsp;-d &apos;{"{"}&quot;image&quot;:
+                  &quot;base64...&quot;, &quot;model&quot;: &quot;mineru&quot;,
+                  &quot;format&quot;: &quot;html&quot;, &quot;mineru_mode&quot;:
+                  &quot;extract&quot;{"}"}&apos;
                 </code>
               </div>
             </div>

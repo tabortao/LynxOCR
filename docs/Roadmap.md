@@ -10,3 +10,4 @@
 - [ ] 学习 https://github.com/xyTom/snippai
 - [ ] 添加paddle ocr 在线模型支持
 - [ ] 添加MinerU Cli支持
+- [ ] 使用https://github.com/GreatV/oar-ocr 重构项目。

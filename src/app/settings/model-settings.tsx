@@ -1,11 +1,25 @@
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { CpuIcon, DownloadIcon, CheckCircleIcon, FolderOpenIcon, CloudIcon, EyeIcon, EyeOffIcon } from "lucide-react"
+import {
+  CpuIcon,
+  DownloadIcon,
+  CheckCircleIcon,
+  FolderOpenIcon,
+  CloudIcon,
+  EyeIcon,
+  EyeOffIcon,
+} from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useAppContext } from "@/lib/app-context"
@@ -26,7 +40,8 @@ export function ModelSettingsPage() {
   const [config, setConfig] = useState<AppConfig | null>(null)
   const [models, setModels] = useState<ModelInfo[]>([])
   const [downloading, setDownloading] = useState<string | null>(null)
-  const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null)
+  const [downloadProgress, setDownloadProgress] =
+    useState<DownloadProgress | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [selectedOcr, setSelectedOcr] = useState<string>("ppocr-v6")
   const [showMineruToken, setShowMineruToken] = useState(false)
@@ -59,13 +74,16 @@ export function ModelSettingsPage() {
     let unlisten: (() => void) | undefined
     const setupListener = async () => {
       try {
-        unlisten = await listen<DownloadProgress>("model-download-progress", (event) => {
-          setDownloadProgress(event.payload)
-          if (event.payload.stage === "completed") {
-            setDownloading(null)
-            loadModels()
+        unlisten = await listen<DownloadProgress>(
+          "model-download-progress",
+          (event) => {
+            setDownloadProgress(event.payload)
+            if (event.payload.stage === "completed") {
+              setDownloading(null)
+              loadModels()
+            }
           }
-        })
+        )
       } catch (err) {
         console.error("Failed to listen download events:", err)
       }
@@ -109,7 +127,7 @@ export function ModelSettingsPage() {
   }
 
   return (
-    <div className="px-4 lg:px-6 space-y-4">
+    <div className="space-y-4 px-4 lg:px-6">
       {/* Model storage path */}
       <Card>
         <CardHeader>
@@ -123,7 +141,11 @@ export function ModelSettingsPage() {
           <div className="flex gap-2">
             <Input
               value={config?.modelPath || ""}
-              onChange={(e) => setConfig((prev) => prev ? { ...prev, modelPath: e.target.value } : prev)}
+              onChange={(e) =>
+                setConfig((prev) =>
+                  prev ? { ...prev, modelPath: e.target.value } : prev
+                )
+              }
               placeholder={t("models.desc.storage")}
               className="flex-1"
             />
@@ -151,13 +173,14 @@ export function ModelSettingsPage() {
               <select
                 value={selectedOcr}
                 onChange={(e) => setSelectedOcr(e.target.value)}
-                className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm flex-1"
+                className="h-9 flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm"
               >
                 {OCR_MODELS.map((key) => {
                   const model = getModel(key)
                   return (
                     <option key={key} value={key}>
-                      {model?.displayName ?? key}{isInstalled(key) ? " ✓" : " (not installed)"}
+                      {model?.displayName ?? key}
+                      {isInstalled(key) ? " ✓" : " (not installed)"}
                     </option>
                   )
                 })}
@@ -174,16 +197,23 @@ export function ModelSettingsPage() {
                       disabled={downloading !== null}
                       size="sm"
                     >
-                      <DownloadIcon className="size-4 mr-1" />
-                      {downloading === selectedOcr ? t("models.downloading") : t("models.download")}
+                      <DownloadIcon className="mr-1 size-4" />
+                      {downloading === selectedOcr
+                        ? t("models.downloading")
+                        : t("models.download")}
                     </Button>
                   )
                 }
 
                 return (
-                  <Badge variant="outline" className="h-8 px-3 gap-1 border-green-300 dark:border-green-700">
+                  <Badge
+                    variant="outline"
+                    className="h-8 gap-1 border-green-300 px-3 dark:border-green-700"
+                  >
                     <CheckCircleIcon className="size-3 text-green-600 dark:text-green-400" />
-                    <span className="text-green-700 dark:text-green-300">{t("models.installed")}</span>
+                    <span className="text-green-700 dark:text-green-300">
+                      {t("models.installed")}
+                    </span>
                   </Badge>
                 )
               })()}
@@ -192,9 +222,7 @@ export function ModelSettingsPage() {
               const sm = getModel(selectedOcr)
               if (sm && sm.installed && sm.path) {
                 return (
-                  <p className="text-xs text-muted-foreground">
-                    {sm.path}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{sm.path}</p>
                 )
               }
               return null
@@ -203,9 +231,11 @@ export function ModelSettingsPage() {
 
           {/* Download progress */}
           {downloading && downloadProgress && (
-            <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+            <div className="space-y-2 rounded-lg border bg-muted/30 p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{downloadProgress.stage}</span>
+                <span className="text-sm font-medium">
+                  {downloadProgress.stage}
+                </span>
                 <span className="text-sm text-muted-foreground">
                   {downloadProgress.percentage.toFixed(0)}%
                 </span>
@@ -223,17 +253,24 @@ export function ModelSettingsPage() {
 
           {/* Download error */}
           {downloadError && (
-            <div className="p-3 border border-red-200 rounded-lg bg-red-50 dark:bg-red-950 dark:border-red-800">
-              <p className="text-sm text-red-600 dark:text-red-400">{downloadError}</p>
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950">
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {downloadError}
+              </p>
             </div>
           )}
 
           {/* Hint */}
-          {!models.some((m) => m.installed && OCR_MODELS.includes(m.name as typeof OCR_MODELS[number])) && !downloading && (
-            <div className="text-sm text-muted-foreground py-2">
-              {t("models.downloadHint")}
-            </div>
-          )}
+          {!models.some(
+            (m) =>
+              m.installed &&
+              OCR_MODELS.includes(m.name as (typeof OCR_MODELS)[number])
+          ) &&
+            !downloading && (
+              <div className="py-2 text-sm text-muted-foreground">
+                {t("models.downloadHint")}
+              </div>
+            )}
         </CardContent>
       </Card>
 
@@ -255,7 +292,11 @@ export function ModelSettingsPage() {
                 id="mineru-token"
                 type={showMineruToken ? "text" : "password"}
                 value={config?.mineruApiToken || ""}
-                onChange={(e) => setConfig((prev) => prev ? { ...prev, mineruApiToken: e.target.value } : prev)}
+                onChange={(e) =>
+                  setConfig((prev) =>
+                    prev ? { ...prev, mineruApiToken: e.target.value } : prev
+                  )
+                }
                 placeholder={t("models.mineru.tokenPlaceholder")}
               />
               <Button
@@ -264,36 +305,58 @@ export function ModelSettingsPage() {
                 onClick={() => setShowMineruToken(!showMineruToken)}
                 title={showMineruToken ? t("api.hideKey") : t("api.showKey")}
               >
-                {showMineruToken ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+                {showMineruToken ? (
+                  <EyeOffIcon className="size-4" />
+                ) : (
+                  <EyeIcon className="size-4" />
+                )}
               </Button>
               <Button variant="outline" onClick={saveMineruConfig}>
                 {t("models.save")}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">{t("models.mineru.tokenHint")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("models.mineru.tokenHint")}
+            </p>
           </div>
 
           {/* API Base URL */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="mineru-base-url">{t("models.mineru.baseUrl")}</Label>
+            <Label htmlFor="mineru-base-url">
+              {t("models.mineru.baseUrl")}
+            </Label>
             <Input
               id="mineru-base-url"
               value={config?.mineruApiBaseUrl || ""}
-              onChange={(e) => setConfig((prev) => prev ? { ...prev, mineruApiBaseUrl: e.target.value || null } : prev)}
+              onChange={(e) =>
+                setConfig((prev) =>
+                  prev
+                    ? { ...prev, mineruApiBaseUrl: e.target.value || null }
+                    : prev
+                )
+              }
               placeholder={t("models.mineru.baseUrlPlaceholder")}
               className="max-w-[400px]"
             />
-            <p className="text-xs text-muted-foreground">{t("models.mineru.baseUrlHint")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("models.mineru.baseUrlHint")}
+            </p>
           </div>
 
           {/* Default Output Format */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="mineru-format">{t("models.mineru.outputFormat")}</Label>
+            <Label htmlFor="mineru-format">
+              {t("models.mineru.outputFormat")}
+            </Label>
             <select
               id="mineru-format"
               value={config?.mineruOutputFormat || "md"}
-              onChange={(e) => setConfig((prev) => prev ? { ...prev, mineruOutputFormat: e.target.value } : prev)}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm max-w-[200px]"
+              onChange={(e) =>
+                setConfig((prev) =>
+                  prev ? { ...prev, mineruOutputFormat: e.target.value } : prev
+                )
+              }
+              className="h-9 max-w-[200px] rounded-md border border-input bg-background px-3 py-1 text-sm"
             >
               {MINERU_FORMATS.map((fmt) => (
                 <option key={fmt.value} value={fmt.value}>
@@ -301,7 +364,9 @@ export function ModelSettingsPage() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground">{t("models.mineru.formatHint")}</p>
+            <p className="text-xs text-muted-foreground">
+              {t("models.mineru.formatHint")}
+            </p>
           </div>
         </CardContent>
       </Card>

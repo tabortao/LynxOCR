@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Replaced single export button with dropdown for TXT/MD export
   - Added markdown export with metadata header and formatted content
   - Updated i18n translations for new UI elements
+- MinerU Markdown result preview improvements
+  - Removed plain-text toggle for MinerU Cloud Markdown output; always render rich preview
+  - Added `remark-math`, `rehype-katex`, and `katex` for inline/block math formula rendering
+  - Replaced `prose` class (depends on `@tailwindcss/typography`) with explicit Tailwind CSS classes for tables, headings, code blocks, lists, and blockquotes
+  - Tables, formulas, and code blocks render correctly in both MinerU and PaddleOCR markdown views
 
 ### Changed
 - Bumped project version to 1.1.1

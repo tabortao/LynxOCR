@@ -40,12 +40,12 @@ export function AppSidebar({
   const [appVersion, setAppVersion] = useState("")
 
   useEffect(() => {
-    getVersion().then((v) => setAppVersion(v)).catch(() => setAppVersion(""))
+    getVersion()
+      .then((v) => setAppVersion(v))
+      .catch(() => setAppVersion(""))
   }, [])
 
-  const mainNav = [
-    { id: "ocr" as Page, title: t("ocr"), icon: ScanTextIcon },
-  ]
+  const mainNav = [{ id: "ocr" as Page, title: t("ocr"), icon: ScanTextIcon }]
 
   const settingsNav = [
     { id: "settings" as Page, title: t("settings"), icon: Settings2Icon },
@@ -62,7 +62,13 @@ export function AppSidebar({
               asChild
               className="data-[slot=sidebar-menu-button]:p-1.5!"
             >
-              <a href="#" onClick={(e) => { e.preventDefault(); onNavigate("ocr") }}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault()
+                  onNavigate("ocr")
+                }}
+              >
                 <CommandIcon className="size-5!" />
                 <span className="text-base font-semibold">LynxOCR</span>
               </a>
@@ -123,19 +129,23 @@ export function AppSidebar({
       </SidebarContent>
       <SidebarFooter>
         <div className="flex items-center justify-between px-3 py-2">
-          <span className="text-xs text-muted-foreground">{appVersion ? `v${appVersion}` : ""}</span>
+          <span className="text-xs text-muted-foreground">
+            {appVersion ? `v${appVersion}` : ""}
+          </span>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setLanguage(language === "zh" ? "en" : "zh")}
-              className="p-1 rounded hover:bg-accent transition-colors"
+              className="rounded p-1 transition-colors hover:bg-accent"
               title={language === "zh" ? "Switch to English" : "切换到中文"}
             >
               <LanguagesIcon className="size-3.5 text-muted-foreground" />
             </button>
             <button
               onClick={toggleTheme}
-              className="p-1 rounded hover:bg-accent transition-colors"
-              title={theme === "dark" ? "Switch to light mode" : "切换到深色模式"}
+              className="rounded p-1 transition-colors hover:bg-accent"
+              title={
+                theme === "dark" ? "Switch to light mode" : "切换到深色模式"
+              }
             >
               {theme === "dark" ? (
                 <SunIcon className="size-3.5 text-muted-foreground" />

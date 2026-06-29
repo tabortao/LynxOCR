@@ -1,5 +1,11 @@
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { InfoIcon } from "lucide-react"
 import { getVersion } from "@tauri-apps/api/app"
 import { useAppContext } from "@/lib/app-context"
@@ -17,11 +23,13 @@ export function AboutPage() {
   const [appVersion, setAppVersion] = useState("")
 
   useEffect(() => {
-    getVersion().then((v) => setAppVersion(v)).catch(() => setAppVersion(""))
+    getVersion()
+      .then((v) => setAppVersion(v))
+      .catch(() => setAppVersion(""))
   }, [])
 
   return (
-    <div className="px-4 lg:px-6 space-y-4">
+    <div className="space-y-4 px-4 lg:px-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -37,7 +45,7 @@ export function AboutPage() {
 
           <div className="space-y-2">
             <h3 className="text-sm font-medium">{t("about.techStack")}</h3>
-            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+            <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
               <li>Tauri v2 + React 19 + TypeScript + Tailwind CSS v4</li>
               <li>PaddleOCR (PP-OCR V4/V5/V6) via ONNX Runtime</li>
               <li>shadcn/ui components</li>
@@ -46,7 +54,9 @@ export function AboutPage() {
 
           <div className="space-y-2">
             <h3 className="text-sm font-medium">{t("about.version")}</h3>
-            <p className="text-sm text-muted-foreground">{appVersion ? `v${appVersion}` : ""}</p>
+            <p className="text-sm text-muted-foreground">
+              {appVersion ? `v${appVersion}` : ""}
+            </p>
           </div>
 
           <a

@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Settings2Icon, SaveIcon, AlertTriangleIcon } from "lucide-react"
@@ -77,7 +83,9 @@ export function SettingsPage() {
       const shortcut = formatShortcut(e)
       const conflict = checkShortcutConflict(shortcut)
       setShortcutConflict(conflict)
-      setConfig((prev) => (prev ? { ...prev, ocrScreenshotShortcut: shortcut } : prev))
+      setConfig((prev) =>
+        prev ? { ...prev, ocrScreenshotShortcut: shortcut } : prev
+      )
       setRecordingShortcut(false)
       recordingRef.current = false
     }
@@ -111,7 +119,7 @@ export function SettingsPage() {
 
   if (!config) {
     return (
-      <div className="px-4 lg:px-6 space-y-4">
+      <div className="space-y-4 px-4 lg:px-6">
         <div className="flex items-center justify-center py-16">
           <p className="text-muted-foreground">{t("settings.loading")}</p>
         </div>
@@ -120,7 +128,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="px-4 lg:px-6 space-y-4">
+    <div className="space-y-4 px-4 lg:px-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -135,18 +143,22 @@ export function SettingsPage() {
             <Label>{t("settings.ocrScreenshotShortcut")}</Label>
             <div className="flex items-center gap-2">
               <div
-                className={`flex-1 h-9 rounded-md border px-3 py-1 text-sm flex items-center cursor-pointer select-none ${
+                className={`flex h-9 flex-1 cursor-pointer items-center rounded-md border px-3 py-1 text-sm select-none ${
                   recordingShortcut
-                    ? "border-primary ring-2 ring-primary/20 bg-primary/5"
+                    ? "border-primary bg-primary/5 ring-2 ring-primary/20"
                     : "border-input bg-background hover:border-muted-foreground/30"
                 }`}
                 onClick={handleStartRecording}
                 title="点击后按下新的快捷键组合"
               >
                 {recordingShortcut ? (
-                  <span className="text-muted-foreground animate-pulse">按下快捷键...</span>
+                  <span className="animate-pulse text-muted-foreground">
+                    按下快捷键...
+                  </span>
                 ) : (
-                  <span className="font-mono">{config.ocrScreenshotShortcut || "Ctrl+Shift+O"}</span>
+                  <span className="font-mono">
+                    {config.ocrScreenshotShortcut || "Ctrl+Shift+O"}
+                  </span>
                 )}
               </div>
               <Button
@@ -172,7 +184,7 @@ export function SettingsPage() {
           </div>
 
           <Button onClick={handleSave} className="w-full">
-            <SaveIcon className="size-4 mr-2" />
+            <SaveIcon className="mr-2 size-4" />
             {saved ? t("settings.saved") : t("settings.save")}
           </Button>
         </CardContent>
