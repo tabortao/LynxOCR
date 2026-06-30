@@ -174,6 +174,7 @@ pub fn run() {
             commands::ocr::write_text_file,
             commands::ocr::write_binary_file,
             commands::ocr::open_file_with_system,
+            commands::ocr::open_app_url,
             // API server commands
             commands::api::api_start_server,
             commands::api::api_stop_server,

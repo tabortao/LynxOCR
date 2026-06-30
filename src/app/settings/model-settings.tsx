@@ -19,6 +19,7 @@ import {
   CloudIcon,
   EyeIcon,
   EyeOffIcon,
+  ExternalLinkIcon,
 } from "lucide-react"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
@@ -315,9 +316,42 @@ export function ModelSettingsPage() {
                 {t("models.save")}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t("models.mineru.tokenHint")}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">
+                {t("models.mineru.tokenHint")}
+              </p>
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto gap-0.5 px-0 text-xs text-primary"
+                onClick={() =>
+                  invoke("open_app_url", {
+                    url: "https://mineru.net/apiManage/token",
+                  }).catch((err) =>
+                    console.error("Failed to open MinerU URL:", err)
+                  )
+                }
+              >
+                <ExternalLinkIcon className="size-3" />
+                MinerU API 申请
+              </Button>
+              <span className="text-xs text-muted-foreground">·</span>
+              <Button
+                variant="link"
+                size="sm"
+                className="h-auto gap-0.5 px-0 text-xs text-primary"
+                onClick={() =>
+                  invoke("open_app_url", {
+                    url: "https://mineru.net/OpenSourceTools/Extractor",
+                  }).catch((err) =>
+                    console.error("Failed to open MinerU URL:", err)
+                  )
+                }
+              >
+                <ExternalLinkIcon className="size-3" />
+                在线使用 MinerU
+              </Button>
+            </div>
           </div>
 
           {/* API Base URL */}

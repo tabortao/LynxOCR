@@ -2,8 +2,11 @@ import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { SiteHeader } from "@/components/site-header"
-import { AppProvider } from "@/lib/app-context"
+import { WindowFrame } from "@/components/window-frame"
+import { TitleBar } from "@/components/title-bar"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Separator } from "@/components/ui/separator"
+import { AppProvider, useAppContext } from "@/lib/app-context"
 import { invoke } from "@tauri-apps/api/core"
 import { listen, type UnlistenFn } from "@tauri-apps/api/event"
 import type { AppConfig } from "@/types"
@@ -43,6 +46,13 @@ export type Page =
   | "model-settings"
   | "api-settings"
   | "about"
+
+function AppTitleBar({ currentPage }: { currentPage: Page }) {
+  const { t } = useAppContext()
+  const title = t(`header.${currentPage}`)
+
+  return <TitleBar title={title} />
+}
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<Page>("ocr")
@@ -227,33 +237,43 @@ export default function App() {
   return (
     <AppProvider>
       <TooltipProvider>
-        <SidebarProvider
-          open={sidebarOpen}
-          onOpenChange={handleSidebarOpenChange}
-          className="max-h-svh overflow-hidden"
-          style={
-            {
-              "--sidebar-width": "calc(var(--spacing) * 52)",
-              "--header-height": "calc(var(--spacing) * 12)",
-            } as React.CSSProperties
-          }
+        <WindowFrame
+          titleBar={<AppTitleBar currentPage={currentPage} />}
+          contentClassName="flex flex-1 overflow-hidden"
         >
-          <AppSidebar
-            variant="inset"
-            currentPage={currentPage}
-            onNavigate={setCurrentPage}
-          />
-          <SidebarInset className="overflow-hidden">
-            <SiteHeader currentPage={currentPage} />
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <div className="@container/main flex flex-1 flex-col gap-2 overflow-hidden">
-                <div className="flex flex-col gap-4 overflow-y-auto py-4 md:gap-6 md:py-6">
-                  {renderPage()}
+          <SidebarProvider
+            open={sidebarOpen}
+            onOpenChange={handleSidebarOpenChange}
+            className="max-h-full overflow-hidden"
+            style={
+              {
+                "--sidebar-width": "calc(var(--spacing) * 52)",
+              } as React.CSSProperties
+            }
+          >
+            <AppSidebar
+              variant="inset"
+              currentPage={currentPage}
+              onNavigate={setCurrentPage}
+            />
+            <SidebarInset className="overflow-hidden">
+              <div className="flex items-center gap-1 px-4 py-1">
+                <SidebarTrigger className="-ml-1" />
+                <Separator
+                  orientation="vertical"
+                  className="mx-2 data-[orientation=vertical]:h-4"
+                />
+              </div>
+              <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="@container/main flex flex-1 flex-col gap-2 overflow-hidden">
+                  <div className="flex flex-col gap-4 overflow-y-auto py-4 md:gap-6 md:py-6">
+                    {renderPage()}
+                  </div>
                 </div>
               </div>
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
+            </SidebarInset>
+          </SidebarProvider>
+        </WindowFrame>
       </TooltipProvider>
     </AppProvider>
   )

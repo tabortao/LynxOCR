@@ -834,3 +834,10 @@ pub fn open_file_with_system(app: tauri::AppHandle, path: String) -> Result<(), 
         .open_path(&path, None::<&str>)
         .map_err(|e| format!("Failed to open file: {e}"))
 }
+
+#[tauri::command]
+pub fn open_app_url(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    app.opener()
+        .open_url(&url, None::<&str>)
+        .map_err(|e| format!("Failed to open URL: {e}"))
+}

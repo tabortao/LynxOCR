@@ -17,7 +17,6 @@ import {
   CpuIcon,
   NetworkIcon,
   InfoIcon,
-  CommandIcon,
   SunIcon,
   MoonIcon,
   LanguagesIcon,
@@ -69,7 +68,12 @@ export function AppSidebar({
                   onNavigate("ocr")
                 }}
               >
-                <CommandIcon className="size-5!" />
+                <img
+                  src="/icon.png"
+                  alt="LynxOCR"
+                  className="size-5 shrink-0"
+                  draggable={false}
+                />
                 <span className="text-base font-semibold">LynxOCR</span>
               </a>
             </SidebarMenuButton>

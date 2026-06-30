@@ -5,6 +5,27 @@ All notable changes to LynxOCR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.1.3] - 2026-06-30
+
+### Added
+- Custom title bar with minimize, maximize, and close buttons (replaces native OS decorations)
+- MinerU API token hint section now includes links to "MinerU API 申请" and "在线使用 MinerU"
+- `open_app_url` Tauri command for opening URLs in the system default browser
+- Screenshots of the UI in README.md and README-zh.md
+
+### Changed
+- Optimized Vite chunk splitting: added `vendor-markdown`, `vendor-table`, and `vendor-zod` manual chunks
+- Removed `--header-height` CSS variable and `SiteHeader` component
+- Window frame uses rounded corners and border in normal mode, removes them when maximized
+
+### Fixed
+- Vite chunk size warning: page chunk reduced from 543 kB to 26.81 kB
+- White screen on startup: fixed `SidebarTrigger` incorrectly rendered outside `SidebarProvider` context in custom title bar
+- Custom title bar now shows app icon (from `src-tauri/icons/icon.png`)
+- Minimize, maximize, and close buttons now use `onMouseDown` with `e.preventDefault()` for reliable event handling
+- Added explicit window permission grants (`core:window:allow-minimize`, `allow-toggle-maximize`, `allow-is-maximized`, `allow-close`, `allow-start-dragging`) in capabilities
+- Raised `chunkSizeWarningLimit` to 700 kB to suppress false-positive warning for `vendor-markdown` bundle
+
 ## [v1.1.2] - 2026-06-29
 
 ### Changed
