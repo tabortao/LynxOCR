@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added raw markdown source / rendered preview toggle for MinerU results
 - Improved KaTeX formula rendering: added `.katex-display` overflow handling and font sizing
 - Enhanced markdown preview typography for both MinerU and PaddleOCR views
+- Rewrote README.md and README-zh.md with badges, logo, project structure, and improved organization
 
 ### Fixed
 - MinerU HTML table rendering in Markdown preview: added `rehype-raw` plugin to parse embedded HTML tables properly
