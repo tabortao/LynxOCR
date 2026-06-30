@@ -21,6 +21,11 @@
   <a href="README.md">English</a>
 </p>
 
+<p align="center">
+  <img src="docs/images/UI-zh-01.png" alt="LynxOCR 截图 1" width="49%">
+  <img src="docs/images/UI-zh-02.png" alt="LynxOCR 截图 2" width="49%">
+</p>
+
 ---
 
 ## 概述

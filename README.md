@@ -21,6 +21,11 @@
   <a href="README-zh.md">中文</a>
 </p>
 
+<p align="center">
+  <img src="docs/images/UI-en-01.png" alt="LynxOCR Screenshot 1" width="49%">
+  <img src="docs/images/UI-en-02.png" alt="LynxOCR Screenshot 2" width="49%">
+</p>
+
 ---
 
 ## Overview
