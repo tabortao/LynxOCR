@@ -31,3 +31,4 @@ docs/*.mp3
 /tools/.model_cache/
 /docs/ocr_dict/
 /docs/ocr-models/
+pnpm-lock.yaml
