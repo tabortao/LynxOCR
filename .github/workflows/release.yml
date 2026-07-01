@@ -17,6 +17,15 @@ jobs:
           - name: "Windows"
             platform: "windows-latest"
             args: ""
+          # - name: "macOS Apple Silicon"
+          #   platform: "macos-latest"
+          #   args: "--target aarch64-apple-darwin"
+          # - name: "macOS Intel"
+          #   platform: "macos-latest"
+          #   args: "--target x86_64-apple-darwin"
+          # - name: "Linux"
+          #   platform: "ubuntu-22.04"
+          #   args: ""
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -25,6 +34,8 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        # with:
+        #   targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -34,30 +45,42 @@ jobs:
         with:
           bun-version: latest
 
+      # - name: Install Linux system dependencies
+      #   if: matrix.platform == 'ubuntu-22.04'
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
       - name: Install frontend dependencies
         run: bun install
-      - name: Build Tauri App
-        run: bun run tauri build --bundles nsis,msi --target x86_64-pc-windows-msvc ${{ matrix.args }}
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }} # 如果你有签名配置记得加上
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      - name: Upload Release Assets
-        uses: tauri-apps/tauri-action@v0
+
+      - name: Build and publish
+        id: tauri
+        uses: tauri-apps/tauri-action@action-v0.6.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          bundleManager: "bun" 
           tagName: v__VERSION__
-          releaseName: "Release v__VERSION__"
-          releaseBody: "See the assets to download this version."
+          releaseName: v__VERSION__
+          releaseBody: See the assets to download this version.
           releaseDraft: true
           prerelease: false
-          appDirectory: . 
-          bundlePath: "src-tauri/target/x86_64-pc-windows-msvc/release/bundle" 
+          # generateReleaseNotes:true
+          retryAttempts: 2
+          args: ${{ matrix.args }}
+          assetNamePattern: "[name]-[version]-[platform]-[arch][ext]"
+          includeUpdaterJson: false
 
       - name: Release summary
-        if: success()
+        if: steps.tauri.outputs.releaseHtmlUrl != ''
         shell: bash
         run: |
-          echo "## Tauri Release Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Platform: ${{ matrix.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Build completed successfully via Bun." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Tauri Release"
+            echo ""
+            echo "- Platform: \`${{ matrix.name }}\`"
+            echo "- Version: \`${{ steps.tauri.outputs.appVersion }}\`"
+            echo "- Release: ${{ steps.tauri.outputs.releaseHtmlUrl }}"
+            echo "- Artifacts: \`${{ steps.tauri.outputs.artifactPaths }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
